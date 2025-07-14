@@ -1,48 +1,65 @@
-FROM continuumio/miniconda3
+FROM nvidia/cuda:12.5.1-cudnn-devel-ubuntu22.04
+
 WORKDIR /code
 
-# supervisor is required to run multiple processes in parallel
-RUN apt-get update --fix-missing && \
-    apt-get install -y supervisor netcat rsync && \
-    apt-get -qq --no-install-recommends install openssh-server && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    python3.10 \
+    python3.10-dev \
+    python3.10-venv \
+    python3-pip \
+    curl \
+    supervisor \
+    netcat-openbsd \
+    rsync \
+    openssh-server \
+    nodejs \
+    npm \
+    build-essential \
+    pkg-config \
+    libhdf5-dev \
+    libpq-dev \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install uv
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+ENV PATH="/root/.local/bin:$PATH"
 
 # Setup SSH
 RUN mkdir /var/run/sshd
 RUN mkdir /root/.ssh && chmod 700 /root/.ssh
 
-COPY docker/morphocluster/run.sh docker/wait-for environment.yml docker/morphocluster/activate ./
-
+COPY docker/morphocluster/run.sh docker/wait-for ./
+COPY docker/morphocluster/activate ./
 COPY docker/morphocluster/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-# Install all required packages at this stage to avoid reinstalling them later when the code changes
-RUN conda config --set notify_outdated_conda false && \
-    conda env create -f environment.yml && \
-    conda clean -y --all
+# Make activate script executable
+RUN chmod +x /code/activate
+
+# Create Python virtual environment
+RUN python3.10 -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Create pyproject.toml for uv
+COPY pyproject.toml requirements.txt ./
+
+# Install Python dependencies
+RUN uv pip install -r requirements.txt
 
 # Install the application
 COPY versioneer.py setup.py setup.cfg MANIFEST.in README.rst ./
 COPY tests ./tests
 COPY morphocluster ./morphocluster
 COPY migrations ./migrations
-RUN . /opt/conda/etc/profile.d/conda.sh && \
-    conda activate morphocluster && \
-    echo Installing packages... && \
-    pip install -e .
+RUN pip install -e .
 
 # Build frontend
-# --openssl-legacy-provider to support some encryption algorithms needed by npm (md4) in OpenSSL 3.0.0
-RUN . /opt/conda/etc/profile.d/conda.sh && \
-    export NODE_OPTIONS=--openssl-legacy-provider && \
-    conda activate morphocluster && \
-    cd morphocluster/frontend  && \
+RUN cd morphocluster/frontend && \
     echo Building frontend... && \
     echo NPM version: `npm --version` && \
     npm ci && \
     npm run build
-
-#COPY --from=build_frontend /frontend/dist morphocluster/frontend/dist
 
 COPY docker/morphocluster/config_docker.py morphocluster/
 

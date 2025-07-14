@@ -1,5 +1,5 @@
-. /opt/conda/etc/profile.d/conda.sh
-conda activate morphocluster
+#!/bin/bash
+source /opt/venv/bin/activate
 
 export FLASK_APP=morphocluster
 export MORPHOCLUSTER_SETTINGS=config_docker.py

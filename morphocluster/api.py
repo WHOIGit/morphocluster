@@ -25,7 +25,7 @@ from flask.blueprints import Blueprint
 from flask.helpers import url_for
 from flask_restful import reqparse
 from redis.exceptions import RedisError
-from sklearn.manifold.isomap import Isomap
+from sklearn.manifold import Isomap
 from timer_cm import Timer
 
 from morphocluster import background, models

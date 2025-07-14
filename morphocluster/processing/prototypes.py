@@ -1,5 +1,4 @@
 import numpy as np
-from numpy.lib.arraysetops import unique
 from scipy.spatial.distance import cdist
 from sklearn.base import ClassifierMixin
 from sklearn.cluster import AgglomerativeClustering

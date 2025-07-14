@@ -191,8 +191,8 @@ def init_app(app):
 
             # Divide index into new and existing objects
             print("Filtering existing entries...")
-            stmt = select([models.objects.c.object_id, models.objects.c.path])
-            existing = pd.read_sql(stmt, conn)
+            stmt = "SELECT object_id, path FROM objects"
+            existing = pd.read_sql(stmt, database.engine)
 
             mask_existing = index["object_id"].isin(existing["object_id"])
             index_new = index[~mask_existing]
