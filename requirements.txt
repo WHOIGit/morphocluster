@@ -20,15 +20,15 @@ flask-redis
 Flask-RQ2
 
 # Scientific computing
-numpy==1.22.*
+numpy==1.26.*
 pandas<2.2.0
 scipy
-scikit-learn==1.0.*
-h5py==3.6.*
+scikit-learn==1.7.*
+h5py>=3.10.0
 
 # Machine learning
 hdbscan
-joblib==1.1.0
+joblib==1.5.1
 
 # Image processing
 Pillow
@@ -40,6 +40,5 @@ fire
 marshmallow
 match_arrays
 timer_cm
-etaprogress
 environs
 flask-restful

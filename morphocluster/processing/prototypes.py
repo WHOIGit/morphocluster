@@ -191,7 +191,7 @@ def merge_prototypes(children, k, metric="euclidean"):
     Returns: Prototypes object
     """
     clusterer = AgglomerativeClustering(
-        n_clusters=k, affinity=metric, linkage="complete"
+        n_clusters=k, metric=metric, linkage="complete"
     )
 
     if not children:

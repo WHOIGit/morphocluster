@@ -9,15 +9,14 @@ description = "Morphological clustering for microscopy images"
 authors = [
     {name = "MorphoCluster Team"}
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 dependencies = [
     "flask>=2.0.0",
     "psycopg2-binary",
     "pandas>=1.3.0",
     "sqlalchemy>=1.4,<2.0",
-    "etaprogress",
-    "h5py>=3.1.0",
-    "scikit-learn>=1.0.0",
+    "h5py>=3.6.0",
+    "scikit-learn>=1.7.0",
     "scipy>=1.7.0",
     "redis>=4.0.0",
     "hiredis",
@@ -37,11 +36,11 @@ dependencies = [
     "chardet",
     "environs",
     "werkzeug<2.1",
-    "joblib>=1.0.0",
+    "joblib>=1.5.1",
     "torch>=1.12.0",
     "torchvision>=0.13.0",
     "Pillow>=8.0.0",
-    "numpy>=1.21.0",
+    "numpy>=1.26.4",
 ]
 
 [project.optional-dependencies]

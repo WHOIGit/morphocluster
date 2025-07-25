@@ -12,7 +12,6 @@ from typing import Iterable, Mapping, Optional
 
 import numpy as np
 import pandas as pd
-from etaprogress.progress import ProgressBar
 from genericpath import commonprefix
 from sklearn.cluster import KMeans
 from sqlalchemy.exc import SQLAlchemyError
@@ -354,11 +353,10 @@ class Tree(object):
         with self.connection.begin():
             project_id = self.create_project(name)
 
-            bar = ProgressBar(len(raw_tree_objects) + len(raw_tree_nodes), max_width=40)
+            progress_bar = tqdm(total=len(raw_tree_objects) + len(raw_tree_nodes), desc="Loading project")
 
             def progress_cb(nadd):
-                bar.numerator += nadd
-                print(bar, end="\r")
+                progress_bar.update(nadd)
 
             # Get object ids for the root
             object_idxs = raw_tree_objects[raw_tree_objects["parent"] == root_orig_id][
@@ -394,11 +392,11 @@ class Tree(object):
                     starred=name is not None,
                     progress_cb=progress_cb,
                 )
-                bar.numerator += 1
+                progress_bar.update(1)
 
-            print()
+            progress_bar.close()
 
-        print("Done after {}s.".format(bar._eta.elapsed))
+        print("Done.")
         print("Created root (orig/real):", root_orig_id, root_node_id)
 
         return project_id
@@ -414,7 +412,7 @@ class Tree(object):
             supersuccessor_ids = [node_id for (node_id,) in supersuccessor_ids]
             supersuccessor_ids.insert(0, root_id)
 
-            bar = ProgressBar(len(supersuccessor_ids), max_width=40)
+            progress_bar = tqdm(total=len(supersuccessor_ids), desc="Connecting supertree")
 
             for node_id in supersuccessor_ids:
 
@@ -438,9 +436,8 @@ class Tree(object):
                 )
                 self.connection.execute(stmt)
 
-                bar.numerator += 1
-                print(bar, end="\r")
-            print()
+                progress_bar.update(1)
+            progress_bar.close()
 
     def get_objects_recursive(self, node_id):
         # Recursively select all descendants
@@ -1622,7 +1619,7 @@ class Tree(object):
                     clusterer = KMeans(N_PROTOTYPES, n_init=2)
 
                     # Iterate over DataFrame fixing the values along the way
-                    bar = ProgressBar(len(invalid_subtree), max_width=40)
+                    progress_bar = tqdm(total=len(invalid_subtree), desc="Consolidating nodes")
                     for node_id in invalid_subtree.index:
                         try:
                             if invalid_subtree.at[node_id, "cache_valid"]:
@@ -1742,12 +1739,12 @@ class Tree(object):
                             # Finally, flag as updated
                             invalid_subtree.at[node_id, "__updated"] = True
 
-                            bar.numerator += 1
-                            print(node_id, bar, end="    \r")
+                            progress_bar.update(1)
+                            progress_bar.set_postfix(node_id=node_id)
                         except:
                             print(f"Error processing node {node_id}")
                             raise
-                    print()
+                    progress_bar.close()
 
                     # Convert _n_objects_deep to int (might be object when containing NULL values in the database)
                     invalid_subtree["_n_objects_deep"] = invalid_subtree[

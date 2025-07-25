@@ -1,13 +1,6 @@
 #!/bin/bash
 
-# Handle authorized_keys - create empty file if directory doesn't exist
-if [ -f /authorized_keys ]; then
-    cp /authorized_keys /root/.ssh/authorized_keys
-    chmod 600 /root/.ssh/authorized_keys
-else
-    touch /root/.ssh/authorized_keys
-    chmod 600 /root/.ssh/authorized_keys
-fi
+# SSH setup removed - not needed for production
 
 # Activate Python virtual environment
 source /opt/venv/bin/activate

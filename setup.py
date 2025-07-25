@@ -16,7 +16,6 @@ setup(
         "psycopg2-binary",
         "pandas<2.2.0",
         "sqlalchemy>=1.3,<2",
-        "etaprogress",
         "h5py==3.6.*",
         "scikit-learn==1.0.*",
         "scipy",
