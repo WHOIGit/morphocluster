@@ -1,0 +1,47 @@
+from setuptools import setup
+import versioneer
+
+setup(
+    name="morphocluster",
+    packages=["morphocluster"],
+    version=versioneer.get_version(),
+    cmdclass=versioneer.get_cmdclass(),
+    include_package_data=True,
+    install_requires=[
+        "flask>=1.0.2,<2",
+        "werkzeug<2.1",
+        "markupSafe<=2.0.1",
+        "Jinja2<3.1",
+        "itsdangerous==2.0.1",
+        "psycopg2-binary",
+        "pandas<2.2.0",
+        "sqlalchemy>=1.3,<2",
+        "h5py==3.6.*",
+        "scikit-learn==1.0.*",
+        "scipy",
+        "redis>=3.5.0",
+        "hiredis",
+        "flask-restful",
+        "alembic",
+        "Flask-SQLAlchemy",
+        "flask-redis",
+        "Flask-Migrate",
+        "timer_cm",
+        "fire",
+        "marshmallow",
+        "match_arrays",
+        "Flask-RQ2",
+        "tqdm",
+        "hdbscan",
+        "chardet",
+        "environs",  # For envvar parsing
+        "joblib==1.1.0",
+        "Pillow",
+        "numpy==1.22.*",
+    ],
+    extras_require={
+        "tests": ["pytest", "requests", "pytest-cov", "lovely-pytest-docker"],
+        "dev": ["black"],
+    },
+    entry_points={"console_scripts": ["morphocluster = morphocluster.scripts:main"]},
+)

@@ -1,7 +1,9 @@
-#!/bin/sh
+#!/bin/bash
 
-# . /opt/conda/etc/profile.d/conda.sh
-micromamba activate base
+# SSH setup removed - not needed for production
+
+# Activate Python virtual environment
+source /opt/venv/bin/activate
 
 export FLASK_APP=morphocluster.server
 

@@ -12,7 +12,7 @@ class RQJobSchema(Schema):
     status = fields.Str(dump_only=True)
     func_name = fields.Str(required=True)
     args = fields.List(fields.Raw)
-    kwargs = fields.Dict(keys=fields.Str, values=fields.Raw, default=dict)
+    kwargs = fields.Dict(keys=fields.Str, values=fields.Raw, load_default=dict)
     result = fields.Raw(dump_only=True)
     exc_info = fields.Raw(dump_only=True)
     description = fields.Raw(dump_only=True)
@@ -24,18 +24,18 @@ class JobSchema(Schema):
     # Creation only
     args = fields.List(fields.Raw, load_only=True)
     kwargs = fields.Dict(
-        keys=fields.Str, values=fields.Raw, default=dict, load_only=True
+        keys=fields.Str, values=fields.Raw, load_default=dict, load_only=True
     )
 
     # Dump only
     id = fields.Str(dump_only=True)
     job = fields.Nested(RQJobSchema, dump_only=True)
-    description = fields.Str(default="", dump_only=True)
+    description = fields.Str(load_default="", dump_only=True)
 
 
 class LogSchema(Schema):
     action = fields.Str(required=True)
 
-    node_id = fields.Int(missing=None)
-    reverse_action = fields.Str(missing=None)
-    data = fields.Raw(missing=None)
+    node_id = fields.Int(dump_default=None)
+    reverse_action = fields.Str(dump_default=None)
+    data = fields.Raw(dump_default=None)

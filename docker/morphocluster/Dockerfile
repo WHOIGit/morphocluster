@@ -1,79 +1,63 @@
-# Build the micromamba environment file
-FROM python:3 as build-env
+FROM nvidia/cuda:12.6.1-cudnn-devel-ubuntu24.04
 
-# Configure CUDA environment
-ARG MORPHOCLUSTER_CUDA=no
-
-# Build environment.yml for main image
-WORKDIR /build-env
-COPY docker/morphocluster/build-env /build-env
-COPY environment*.yml ./
-RUN pip install --no-cache-dir -r requirements.txt \
-    && python build.py
-
-# Build the frontend
-FROM node:18-alpine as build-frontend
-WORKDIR /frontend
-COPY morphocluster/frontend /frontend
-
-# --openssl-legacy-provider to support some encryption algorithms needed by npm (md4) in OpenSSL 3.0.0
-# See https://github.com/vuejs/vue-cli/issues/6770
-RUN export NODE_OPTIONS=--openssl-legacy-provider && \
-    echo Building frontend... && \
-    echo NPM version: `npm --version` && \
-    npm ci && \
-    npm run build
-
-# Main image
-FROM mambaorg/micromamba
 WORKDIR /code
 USER root
 
-# supervisor is required to run multiple processes in parallel
-# netcat is required by wait-for
-RUN apt-get update --fix-missing --no-install-recommends && \
-    apt-get install --no-install-recommends -y supervisor netcat-traditional rsync && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    python3.12 \
+    python3.12-dev \
+    python3.12-venv \
+    python3-setuptools \
+    python3-pip \
+    curl \
+    supervisor \
+    netcat-openbsd \
+    rsync \
+    nodejs \
+    npm \
+    build-essential \
+    pkg-config \
+    libhdf5-dev \
+    libpq-dev \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-# Image metadata
-ARG MORPHOCLUSTER_VERSION=unversioned
+# Install uv
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+ENV PATH="/root/.local/bin:$PATH"
 
-# Labels
-# see https://github.com/opencontainers/image-spec/blob/main/annotations.md
-LABEL org.opencontainers.image.title=MorphoCluster
-LABEL org.opencontainers.image.version=${MORPHOCLUSTER_VERSION}
-LABEL org.opencontainers.image.source=https://github.com/morphocluster/morphocluster/
+COPY docker/morphocluster/run.sh docker/wait-for ./
+COPY docker/morphocluster/activate ./
+COPY docker/morphocluster/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-COPY --from=build-env /build-env/environment.yml /tmp
+# Make activate script executable
+RUN chmod +x /code/activate
 
-# Install all required packages at this stage to avoid reinstalling them later when the code changes
-RUN --mount=type=cache,target=/opt/conda/pkgs \
-    micromamba config set always_copy true && \
-    umask 0002 && micromamba install -n base -y -f /tmp/environment.yml;
+# Create Python virtual environment
+RUN python3.12 -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
 
-# Activate environment for subsequent RUN commands:
-ARG MAMBA_DOCKERFILE_ACTIVATE=1
+# Create pyproject.toml for uv
+COPY pyproject.toml requirements.txt ./
+
+# Install Python dependencies
+RUN uv pip install -r requirements.txt
 
 # Install the application
 COPY versioneer.py setup.py setup.cfg MANIFEST.in README.rst ./
 COPY tests ./tests
 COPY morphocluster ./morphocluster
 COPY migrations ./migrations
-RUN echo Installing packages... && \
-    pip install -e .
+RUN pip install -e .
 
-COPY --from=build-frontend /frontend/dist morphocluster/frontend/dist
+# Build frontend
+RUN cd morphocluster/frontend && \
+    echo Building frontend... && \
+    echo NPM version: `npm --version` && \
+    npm install && \
+    npm run build
 
-COPY docker/wait-for docker/morphocluster/run.sh docker/morphocluster/activate ./
-COPY docker/morphocluster/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-
-ENV FLASK_APP=morphocluster.server
-
-# Enable bash completion
-RUN _FLASK_COMPLETE=bash_source flask > ~/.flask-complete.bash && \
-    echo -e ". ~/.flask-complete.bash\n" >> ~/.bashrc && \
-    _MORPHOCLUSTER_COMPLETE=bash_source morphocluster > ~/.morphocluster-complete.bash && \
-    echo -e ". ~/.morphocluster-complete.bash\n" >> ~/.bashrc
+COPY docker/morphocluster/config_docker.py morphocluster/
 
 CMD ["/code/run.sh"]

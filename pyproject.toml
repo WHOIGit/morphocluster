@@ -1,4 +1,59 @@
-[tool.black]
-extend-exclude = '''
-migrations/.*
-'''
+[build-system]
+requires = ["setuptools>=45", "wheel", "versioneer[toml]"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "morphocluster"
+dynamic = ["version"]
+description = "Morphological clustering for microscopy images"
+authors = [
+    {name = "MorphoCluster Team"}
+]
+requires-python = ">=3.12"
+dependencies = [
+    "flask>=2.0.0",
+    "psycopg2-binary",
+    "pandas>=1.3.0",
+    "sqlalchemy>=1.4,<2.0",
+    "h5py>=3.6.0",
+    "scikit-learn>=1.7.0",
+    "scipy>=1.7.0",
+    "redis>=4.0.0",
+    "hiredis",
+    "flask-restful",
+    "alembic",
+    "Flask-SQLAlchemy",
+    "flask-redis",
+    "Flask-Migrate",
+    "timer_cm",
+    "fire",
+    "marshmallow>=3.0.0",
+    "match_arrays",
+    "Flask-RQ2",
+    "tqdm",
+    "hdbscan>=0.8.28",
+    "Click>=8.0.0",
+    "chardet",
+    "environs",
+    "werkzeug<2.1",
+    "joblib>=1.5.1",
+    "torch>=1.12.0",
+    "torchvision>=0.13.0",
+    "Pillow>=8.0.0",
+    "numpy>=1.26.4",
+]
+
+[project.optional-dependencies]
+tests = ["pytest", "requests", "pytest-cov", "lovely-pytest-docker"]
+dev = ["black", "ruff"]
+
+[project.scripts]
+morphocluster = "morphocluster.scripts:main"
+
+[tool.versioneer]
+VCS = "git"
+style = "pep440"
+versionfile_source = "morphocluster/_version.py"
+versionfile_build = "morphocluster/_version.py"
+tag_prefix = "v"
+parentdir_prefix = "morphocluster-"

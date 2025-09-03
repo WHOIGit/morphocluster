@@ -1,5 +1,4 @@
 import numpy as np
-from numpy.lib.arraysetops import unique
 from scipy.spatial.distance import cdist
 from sklearn.base import ClassifierMixin
 from sklearn.cluster import AgglomerativeClustering
@@ -192,7 +191,7 @@ def merge_prototypes(children, k, metric="euclidean"):
     Returns: Prototypes object
     """
     clusterer = AgglomerativeClustering(
-        n_clusters=k, affinity=metric, linkage="complete"
+        n_clusters=k, metric=metric, linkage="complete"
     )
 
     if not children:

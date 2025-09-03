@@ -68,7 +68,7 @@ def create_app(test_config: Optional[Mapping]=None):
 
     database.init_app(app)
     redis_lru.init_app(app)
-    migrate.init_app(app, database)
+    migrate.init_app(app, database, directory='migrations')
     rq.init_app(app)
 
     # Register cli
