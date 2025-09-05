@@ -1,3 +1,0 @@
-graft morphocluster/templates
-graft morphocluster/static
-include morphocluster/_version.py

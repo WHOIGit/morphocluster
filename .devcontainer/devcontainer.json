@@ -1,10 +1,10 @@
 {
 	"name": "morphocluster",
 	"containerEnv": {
-		"TZ": "Europe/Berlin",
+		"TZ": "America/New_York",
 		"LOCAL_WORKSPACE_FOLDER": "${localWorkspaceFolder}",
 		"CONTAINER_WORKSPACE_FOLDER": "${containerWorkspaceFolder}",
-		"FLASK_APP": "morphocluster.server"
+		"FLASK_APP": "morphocluster"
 	},
 	// "runArgs": [
 	// 	"--hostname", "devcontainer",
