@@ -15,6 +15,7 @@ del get_versions
 
 from flask.logging import default_handler
 
+
 class RequestFormatter(logging.Formatter):
     def format(self, record):
         if has_request_context():
@@ -26,21 +27,22 @@ class RequestFormatter(logging.Formatter):
 
         return super().format(record)
 
+
 formatter = RequestFormatter(
-    '[%(asctime)s] %(remote_addr)s requested %(url)s\n'
-    '%(levelname)s in %(module)s: %(message)s'
+    "[%(asctime)s] %(remote_addr)s requested %(url)s\n"
+    "%(levelname)s in %(module)s: %(message)s"
 )
 default_handler.setFormatter(formatter)
 
 
-def create_app(test_config: Optional[Mapping]=None):
+def create_app(test_config: Optional[Mapping] = None):
     """Create and configure an instance of the Flask application."""
 
     # Enable fault handler for meaningful stack traces when a worker is killed
     import faulthandler
 
-    from flask import (Response, redirect,
-                       render_template, url_for)
+    from flask import Response, redirect, render_template, url_for
+
     faulthandler.enable()
 
     app = Flask(__name__, instance_relative_config=True)
@@ -68,7 +70,7 @@ def create_app(test_config: Optional[Mapping]=None):
 
     database.init_app(app)
     redis_lru.init_app(app)
-    migrate.init_app(app, database, directory='migrations')
+    migrate.init_app(app, database, directory="migrations")
     rq.init_app(app)
 
     # Register cli
@@ -84,7 +86,7 @@ def create_app(test_config: Optional[Mapping]=None):
             return float(obj)
         if isinstance(obj, np.integer):
             return int(obj)
-        raise TypeError(f'Object of type {type(obj)} is not JSON serializable')
+        raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
 
     app.json.default = numpy_json_default
 
@@ -142,7 +144,11 @@ def create_app(test_config: Optional[Mapping]=None):
     def check_auth(username, password):
         # Retrieve entry from the database
         with database.engine.connect() as conn:
-            stmt = models.users.select().where(models.users.c.username == username).limit(1)
+            stmt = (
+                models.users.select()
+                .where(models.users.c.username == username)
+                .limit(1)
+            )
             user = conn.execute(stmt).first()
 
             if user is None:

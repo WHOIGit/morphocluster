@@ -11,15 +11,23 @@ from flask.blueprints import Blueprint
 import os
 
 frontend = Blueprint(
-    "frontend", __name__, 
-    static_folder=os.path.join(os.path.dirname(__file__), "frontend", "dist"), 
-    static_url_path=""
+    "frontend",
+    __name__,
+    static_folder=os.path.join(os.path.dirname(__file__), "frontend", "dist"),
+    static_url_path="",
 )
+
 
 @frontend.route("/config.js")
 def get_config_js():
-    content = "window.config = " + json.dumps({k: v for k,v in current_app.config.items() if k.startswith("FRONTEND_")}) + ";"
-    return current_app.response_class(content, mimetype='text/javascript')
+    content = (
+        "window.config = "
+        + json.dumps(
+            {k: v for k, v in current_app.config.items() if k.startswith("FRONTEND_")}
+        )
+        + ";"
+    )
+    return current_app.response_class(content, mimetype="text/javascript")
 
 
 @frontend.route("/")

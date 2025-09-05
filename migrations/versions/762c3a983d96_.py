@@ -5,6 +5,7 @@ Revises: fe6fec6b70a6
 Create Date: 2021-10-28 08:59:45.382312
 
 """
+
 from alembic import op
 import sqlalchemy as sa
 from morphocluster.sql.types import Point

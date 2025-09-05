@@ -24,10 +24,10 @@ class Classifier(object):
     def distances(self, X):
         """
         Calculates distances between types and X.
-        
+
         Parameters:
             X: ndarray of N samples by M dimensions.
-        
+
         Returns:
             ndarray of distance matrix
         """
@@ -38,12 +38,12 @@ class Classifier(object):
     def classify(self, X, safe=True):
         """
         Classifies X into the types.
-        
+
         Parameters:
             X: ndarray of N samples by D dimensions.
-        
+
         Returns:
-            ndarray of N type indices. -1 for unclassified 
+            ndarray of N type indices. -1 for unclassified
         """
 
         distances = self.distances(X)

@@ -1,6 +1,7 @@
 """
 JSON encoder that is able to serialize numpy scalars.
 """
+
 import json
 import numpy as np
 

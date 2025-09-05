@@ -12,7 +12,7 @@ from flask_rq2 import RQ
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.pool import StaticPool
 
-# StaticPool: Use one connection throughout  
+# StaticPool: Use one connection throughout
 database = SQLAlchemy()
 redis_lru = FlaskRedis(config_prefix="REDIS_LRU")
 migrate = Migrate()

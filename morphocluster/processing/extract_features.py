@@ -1,5 +1,5 @@
-"""Extract features for a EcoTaxa-formatted dataset.
-"""
+"""Extract features for a EcoTaxa-formatted dataset."""
+
 import threading
 from typing import Optional
 import zipfile
@@ -272,7 +272,7 @@ class ArchiveDataset(torch.utils.data.Dataset):
         print("Done.")
 
     def __getitem__(self, index):
-        object_id, path = self.dataframe.iloc[index][["object_id", "path"]] # type: ignore
+        object_id, path = self.dataframe.iloc[index][["object_id", "path"]]  # type: ignore
 
         with self.lock:
             with self.archive.open(path) as fp:
@@ -404,12 +404,15 @@ def extract_features(
     else:
         print("Using pretrained model.")
         parameters = None
-        in_channels = None # Leave model unchanged
-        pretrained = True # Use pretrained weights
-        n_classes = None # Leave model unchanged
+        in_channels = None  # Leave model unchanged
+        pretrained = True  # Use pretrained weights
+        n_classes = None  # Leave model unchanged
 
     model = Model(
-        "resnet18", pretrained=pretrained, in_channels=in_channels, num_classes=n_classes
+        "resnet18",
+        pretrained=pretrained,
+        in_channels=in_channels,
+        num_classes=n_classes,
     )
 
     if parameters is not None:
@@ -428,10 +431,9 @@ def extract_features(
             PadQuadratic(128, value=(255, 255, 255)),
             Resize(128),
             ToTensor(),
-            Normalize(input_mean, input_std)
+            Normalize(input_mean, input_std),
         ]
     )
-
 
     dataset = ArchiveDataset(archive_fn, transform)
 

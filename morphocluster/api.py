@@ -3,6 +3,7 @@ Created on 19.03.2018
 
 @author: mschroeder
 """
+
 import json
 import os
 import pathlib
@@ -142,9 +143,9 @@ def record(state):
 @api.after_request
 def api_headers(response):
     response.headers["Last-Modified"] = datetime.now()
-    response.headers[
-        "Cache-Control"
-    ] = "no-store, no-cache, must-revalidate, post-check=0, pre-check=0, max-age=0"
+    response.headers["Cache-Control"] = (
+        "no-store, no-cache, must-revalidate, post-check=0, pre-check=0, max-age=0"
+    )
     response.headers["Pragma"] = "no-cache"
     response.headers["Expires"] = "-1"
 
@@ -203,9 +204,9 @@ def _tree_node(node, supertree=False):
     result = {
         "id": node["node_id"],
         "text": "{} ({})".format(node["name"] or node["node_id"], node["_n_children"]),
-        "children": node["n_superchildren"] > 0
-        if supertree
-        else node["_n_children"] > 0,
+        "children": (
+            node["n_superchildren"] > 0 if supertree else node["_n_children"] > 0
+        ),
         "icon": _node_icon(node),
     }
 

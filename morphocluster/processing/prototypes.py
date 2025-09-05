@@ -71,7 +71,9 @@ class Prototypes:
 
     def _validate(self):
         """Validate that prototypes and support match."""
-        assert self.prototypes_.shape[0] == self.support_.shape[0], f"Prototype shape ({self.prototypes_.shape}) does not support shape ({self.support_.shape})"
+        assert (
+            self.prototypes_.shape[0] == self.support_.shape[0]
+        ), f"Prototype shape ({self.prototypes_.shape}) does not support shape ({self.support_.shape})"
 
     def transform(self, X, metric="euclidean", **kwargs):
         """
@@ -190,9 +192,7 @@ def merge_prototypes(children, k, metric="euclidean"):
 
     Returns: Prototypes object
     """
-    clusterer = AgglomerativeClustering(
-        n_clusters=k, metric=metric, linkage="complete"
-    )
+    clusterer = AgglomerativeClustering(n_clusters=k, metric=metric, linkage="complete")
 
     if not children:
         return Prototypes(None)

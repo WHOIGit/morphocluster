@@ -41,10 +41,10 @@ def seq2array(seq, length):
 class keydefaultdict(defaultdict):
     """
     The first argument provides the initial value for the default_factory attribute.
-    
+
     Attributes:
         default_factory: Callable that produces a missing value given its key.
-    
+
     By Jochen Ritzel
     https://stackoverflow.com/a/2912455/1116842
     """
@@ -60,7 +60,7 @@ class keydefaultdict(defaultdict):
 def combine_covariances(m1, m2, S1, S2, n1, n2):
     """
     Combine the covariances of two samples.
-    
+
     Recipe: Tim Michels
     """
     A = n1 * S1 + n2 * S2

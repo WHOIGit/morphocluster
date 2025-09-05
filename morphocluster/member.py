@@ -52,7 +52,7 @@ class MemberCollection(Sequence):
         """
         Calculate the support of this collection and its cumulative vector.
 
-        This is used in the recursive calculation of cluster centroids.        
+        This is used in the recursive calculation of cluster centroids.
         """
         support = 0
         vector = 0

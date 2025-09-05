@@ -47,6 +47,7 @@ def test_load(flask_app, datadir):
     match = re.search(r"Project ID: (.+)", result.output)
     assert match is not None, result.output
 
+
 def test_user(flask_app: Flask):
     runner = flask_app.test_cli_runner()
 
@@ -54,12 +55,9 @@ def test_user(flask_app: Flask):
 
     # Create user
     result = runner.invoke(
-        args=[
-            "add-user",
-            username
-        ],
+        args=["add-user", username],
         catch_exceptions=False,
-        input="password\npassword\n"
+        input="password\npassword\n",
     )
     assert result.exit_code == 0, result.output
 
@@ -68,12 +66,9 @@ def test_user(flask_app: Flask):
 
     # Change user
     result = runner.invoke(
-        args=[
-            "change-user",
-            username
-        ],
+        args=["change-user", username],
         catch_exceptions=False,
-        input="password2\npassword2\n"
+        input="password2\npassword2\n",
     )
     assert result.exit_code == 0, result.output
 

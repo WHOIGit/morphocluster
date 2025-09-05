@@ -353,7 +353,10 @@ class Tree(object):
         with self.connection.begin():
             project_id = self.create_project(name)
 
-            progress_bar = tqdm(total=len(raw_tree_objects) + len(raw_tree_nodes), desc="Loading project")
+            progress_bar = tqdm(
+                total=len(raw_tree_objects) + len(raw_tree_nodes),
+                desc="Loading project",
+            )
 
             def progress_cb(nadd):
                 progress_bar.update(nadd)
@@ -412,7 +415,9 @@ class Tree(object):
             supersuccessor_ids = [node_id for (node_id,) in supersuccessor_ids]
             supersuccessor_ids.insert(0, root_id)
 
-            progress_bar = tqdm(total=len(supersuccessor_ids), desc="Connecting supertree")
+            progress_bar = tqdm(
+                total=len(supersuccessor_ids), desc="Connecting supertree"
+            )
 
             for node_id in supersuccessor_ids:
 
@@ -1621,7 +1626,9 @@ class Tree(object):
                     clusterer = KMeans(N_PROTOTYPES, n_init=2)
 
                     # Iterate over DataFrame fixing the values along the way
-                    progress_bar = tqdm(total=len(invalid_subtree), desc="Consolidating nodes")
+                    progress_bar = tqdm(
+                        total=len(invalid_subtree), desc="Consolidating nodes"
+                    )
                     for node_id in invalid_subtree.index:
                         try:
                             if invalid_subtree.at[node_id, "cache_valid"]:

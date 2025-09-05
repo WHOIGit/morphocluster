@@ -12,15 +12,17 @@ REDIS_LRU_URL = "redis://redis-lru:6379/0"
 RQ_REDIS_URL = "redis://redis-rq:6379/0"
 
 # Database connection
-SQLALCHEMY_DATABASE_URI = _env.str("MORPHOCLUSTER_DATABASE_URI", default=
-    "postgresql://morphocluster:morphocluster@postgres/morphocluster"
+SQLALCHEMY_DATABASE_URI = _env.str(
+    "MORPHOCLUSTER_DATABASE_URI",
+    default="postgresql://morphocluster:morphocluster@postgres/morphocluster",
 )
 SQLALCHEMY_TRACK_MODIFICATIONS = False
 # SQLAlchemy 2.0 configuration
 from sqlalchemy.pool import StaticPool
+
 SQLALCHEMY_ENGINE_OPTIONS = {
     "poolclass": StaticPool,
-    "connect_args": {"options": "-c statement_timeout=240s"}
+    "connect_args": {"options": "-c statement_timeout=240s"},
 }
 
 # Save the results of accept_recommended_objects
