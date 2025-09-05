@@ -43,5 +43,5 @@ setup(
         "tests": ["pytest", "requests", "pytest-cov", "lovely-pytest-docker"],
         "dev": ["black"],
     },
-    entry_points={"console_scripts": ["morphocluster = morphocluster.scripts:main"]},
+    # Console scripts removed - use Flask CLI commands instead (flask --help)
 )
