@@ -22,11 +22,11 @@ from sqlalchemy.sql.functions import coalesce, func
 from timer_cm import Timer
 from tqdm import tqdm
 
-import morphocluster.lib as lib
+from morphocluster import processing
 from morphocluster.classifier import Classifier
 from morphocluster.extensions import database
 from morphocluster.helpers import seq2array
-from morphocluster.lib.prototypes import Prototypes, merge_prototypes
+from morphocluster.processing.prototypes import Prototypes, merge_prototypes
 from morphocluster.member import MemberCollection
 from morphocluster.models import (
     nodes,
@@ -171,8 +171,8 @@ class Tree(object):
         Load a project from a saved tree.
         """
 
-        if not isinstance(tree, lib.Tree):
-            tree = lib.Tree.from_saved(tree)
+        if not isinstance(tree, processing.Tree):
+            tree = processing.Tree.from_saved(tree)
 
         with self.connection.begin():
             project_id = self.create_project(name)
@@ -229,8 +229,8 @@ class Tree(object):
         Update a project from a saved tree.
         """
 
-        if not isinstance(tree, lib.Tree):
-            tree = lib.Tree.from_saved(tree)
+        if not isinstance(tree, processing.Tree):
+            tree = processing.Tree.from_saved(tree)
 
         with self.connection.begin():
             root_id = self.get_root_id(project_id)
@@ -599,7 +599,7 @@ class Tree(object):
             )
 
             try:
-                tree = lib.Tree(tree_nodes, node_objects, node_rejected_objects)
+                tree = processing.Tree(tree_nodes, node_objects, node_rejected_objects)
             except ValueError:
                 print(tree_nodes)
                 print(node_objects)

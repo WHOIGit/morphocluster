@@ -5,8 +5,8 @@ import flask_rq2
 from flask import current_app as app
 
 from morphocluster.extensions import database, rq
-from morphocluster.lib.recluster import Recluster
-from morphocluster.lib.tree import Tree
+from morphocluster.processing.recluster import Recluster
+from morphocluster.processing.tree import Tree
 
 
 def validate_background_job(fun):

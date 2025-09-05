@@ -1,14 +1,8 @@
-import Vue from 'vue'
-import Router from 'vue-router'
+import { createRouter, createWebHistory } from 'vue-router'
 
 import NotFound from './views/NotFound.vue'
 
-Vue.use(Router)
-
-var router = new Router({
-  mode: 'history',
-  base: process.env.BASE_URL,
-  routes: [
+const routes = [
     {
       name: 'labeling',
       path: '/labeling',
@@ -56,8 +50,12 @@ var router = new Router({
       path: '/',
       redirect: '/home'
     },
-    { path: '*', component: NotFound }
+    { path: '/:pathMatch(.*)*', component: NotFound }
   ]
-});
+
+const router = createRouter({
+  history: createWebHistory(process.env.BASE_URL),
+  routes
+})
 
 export default router;

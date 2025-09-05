@@ -1,24 +1,21 @@
-import Vue from 'vue'
+import { createApp } from 'vue'
 import App from './App.vue'
 import router from './router'
 
-// Bootstrap
-import BootstrapVue from 'bootstrap-vue'
+// Bootstrap Vue 3
+import BootstrapVueNext from 'bootstrap-vue-next'
 import 'bootstrap/dist/css/bootstrap.css'
-import 'bootstrap-vue/dist/bootstrap-vue.css'
-Vue.use(BootstrapVue);
+import 'bootstrap-vue-next/dist/bootstrap-vue-next.css'
 
 // Custom styles
 import './assets/styles.css'
 
-Vue.config.productionTip = false
+const app = createApp(App)
 
-new Vue({
-  router,
-  render: h => h(App),
-  data() {
-    return {
-      config: window.config,
-    };
-  },
-}).$mount('#app')
+app.use(router)
+app.use(BootstrapVueNext)
+
+// Make config available globally
+app.provide('config', window.config)
+
+app.mount('#app')

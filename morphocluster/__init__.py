@@ -76,10 +76,17 @@ def create_app(test_config: Optional[Mapping]=None):
 
     cli.init_app(app)
 
-    # Custom JSON encoder
-    from morphocluster.numpy_json_encoder import NumpyJSONEncoder
+    # Custom JSON encoder for Flask 3.0+
+    import numpy as np
 
-    app.json_encoder = NumpyJSONEncoder
+    def numpy_json_default(obj):
+        if isinstance(obj, np.floating):
+            return float(obj)
+        if isinstance(obj, np.integer):
+            return int(obj)
+        raise TypeError(f'Object of type {type(obj)} is not JSON serializable')
+
+    app.json.default = numpy_json_default
 
     # Enable batch mode
     with app.app_context():
@@ -141,7 +148,7 @@ def create_app(test_config: Optional[Mapping]=None):
             if user is None:
                 return False
 
-        return check_password_hash(user["pwhash"], password)
+        return check_password_hash(user.pwhash, password)
 
     from time import sleep
 
@@ -154,7 +161,7 @@ def create_app(test_config: Optional[Mapping]=None):
 
         auth = request.authorization
 
-        success = check_auth(auth.username, auth.password) if auth else None  # type: ignore
+        success = check_auth(auth.username, auth.password) if auth else False
 
         if not auth or not success:
             if success is False:

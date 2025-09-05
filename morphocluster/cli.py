@@ -19,7 +19,7 @@ from sqlalchemy.sql.expression import bindparam, select
 from timer_cm import Timer
 from werkzeug.security import generate_password_hash
 
-from morphocluster import models
+from morphocluster import models, processing
 from morphocluster.extensions import database
 from morphocluster.tree import Tree
 
@@ -32,6 +32,7 @@ def _add_user(username, password):
     with database.engine.connect() as conn:
         stmt = models.users.insert().values(username=username, pwhash=pwhash)
         conn.execute(stmt)
+        conn.commit()
 
 
 def init_app(app):
@@ -515,6 +516,7 @@ def init_app(app):
                     models.users.c.username == username, {"pwhash": pwhash}
                 )
                 conn.execute(stmt)
+                conn.commit()
         except IntegrityError as e:
             print(e)
         else:

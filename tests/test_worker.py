@@ -1,5 +1,5 @@
 import time
-from morphocluster.server import jobs
+from morphocluster import background as jobs
 from rq.job import JobStatus
 
 

@@ -74,8 +74,6 @@
 import * as api from "@/helpers/api.js";
 import axios from "axios";
 import { EventBus } from "@/event-bus.js";
-import "bootstrap/dist/css/bootstrap.min.css";
-import "bootstrap";
 import DarkModeControl from "@/components/DarkModeControl.vue";
 
 export default {

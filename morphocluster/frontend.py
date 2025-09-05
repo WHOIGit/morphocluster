@@ -8,8 +8,12 @@ import json
 from flask import current_app
 from flask.blueprints import Blueprint
 
+import os
+
 frontend = Blueprint(
-    "frontend", __name__, static_folder="frontend/dist", static_url_path=""
+    "frontend", __name__, 
+    static_folder=os.path.join(os.path.dirname(__file__), "frontend", "dist"), 
+    static_url_path=""
 )
 
 @frontend.route("/config.js")

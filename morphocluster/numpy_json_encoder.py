@@ -1,11 +1,11 @@
 """
 JSON encoder that is able to serialize numpy scalars.
 """
-from flask.json import JSONEncoder
+import json
 import numpy as np
 
 
-class NumpyJSONEncoder(JSONEncoder):
+class NumpyJSONEncoder(json.JSONEncoder):
     """
     JSON encoder that is able to serialize numpy scalars.
     """
@@ -15,4 +15,4 @@ class NumpyJSONEncoder(JSONEncoder):
             return float(o)
         if isinstance(o, np.integer):
             return int(o)
-        return JSONEncoder.default(self, o)
+        return json.JSONEncoder.default(self, o)
