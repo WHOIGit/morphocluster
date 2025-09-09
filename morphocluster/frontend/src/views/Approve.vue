@@ -44,7 +44,9 @@
                 @infinite="updateMembers"
                 spinner="circles"
             >
-                <div slot="no-more" />
+                <template #no-more>
+                    <div />
+                </template>
             </infinite-loading>
         </div>
         <div

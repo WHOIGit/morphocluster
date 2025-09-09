@@ -461,7 +461,7 @@ class Tree(object):
 
         with Timer("calculate_progress") as t:
 
-            with self.connection.begin(), t.child("consolidate_node"):
+            with t.child("consolidate_node"):
                 subtree = self.consolidate_node(
                     node_id, depth="full", return_="raw", descend_approved=False
                 )
@@ -540,61 +540,58 @@ class Tree(object):
         """
         Generate a processing.Tree from the tree below root_id.
         """
-        with self.connection.begin():
-            # Acquire project lock
-            self.lock_project_for_node(root_id)
+        # Acquire project lock
+        self.lock_project_for_node(root_id)
 
-            # Get complete subtree with up to date cached values
-            print("Consolidating cached values...")
-            subtree = self.consolidate_node(root_id, depth="full", return_="raw")
+        # Get complete subtree with up to date cached values
+        print("Consolidating cached values...")
+        subtree = self.consolidate_node(root_id, depth="full", return_="raw")
 
-            keep_columns = [
-                "orig_id",
-                "parent_id",
-                "name",
-                "starred",
-                "filled",
-                "approved",
-                "_n_children",
-                "_n_objects",
-                "_n_objects_deep",
-            ]
-            tree_nodes = subtree[keep_columns].reset_index()
+        keep_columns = [
+            "orig_id",
+            "parent_id",
+            "name",
+            "starred",
+            "filled",
+            "approved",
+            "_n_children",
+            "_n_objects",
+            "_n_objects_deep",
+        ]
+        tree_nodes = subtree[keep_columns].reset_index()
 
-            print("Getting objects...")
-            # Get subtree below root
-            subtree = _rquery_subtree(root_id)
+        print("Getting objects...")
+        # Get subtree below root
+        subtree = _rquery_subtree(root_id)
 
-            # Get object IDs for all nodes
-            node_objects = (
-                select([nodes_objects.c.node_id, nodes_objects.c.object_id])
-                .select_from(nodes_objects)
-                .where(nodes_objects.c.node_id == subtree.c.node_id)
+        # Get object IDs for all nodes
+        node_objects = (
+            select(nodes_objects.c.node_id, nodes_objects.c.object_id)
+            .select_from(nodes_objects)
+            .where(nodes_objects.c.node_id == subtree.c.node_id)
+        )
+
+        node_objects = pd.read_sql_query(node_objects, self.connection)
+
+        node_rejected_objects = (
+            select(
+                nodes_rejected_objects.c.node_id,
+                nodes_rejected_objects.c.object_id,
             )
+            .select_from(nodes_rejected_objects)
+            .where(nodes_rejected_objects.c.node_id == subtree.c.node_id)
+        )
 
-            node_objects = pd.read_sql_query(node_objects, self.connection)
+        node_rejected_objects = pd.read_sql_query(
+            node_rejected_objects, self.connection
+        )
 
-            node_rejected_objects = (
-                select(
-                    [
-                        nodes_rejected_objects.c.node_id,
-                        nodes_rejected_objects.c.object_id,
-                    ]
-                )
-                .select_from(nodes_rejected_objects)
-                .where(nodes_rejected_objects.c.node_id == subtree.c.node_id)
-            )
-
-            node_rejected_objects = pd.read_sql_query(
-                node_rejected_objects, self.connection
-            )
-
-            try:
-                tree = processing.Tree(tree_nodes, node_objects, node_rejected_objects)
-            except ValueError:
-                print(tree_nodes)
-                print(node_objects)
-                raise
+        try:
+            tree = processing.Tree(tree_nodes, node_objects, node_rejected_objects)
+        except ValueError:
+            print(tree_nodes)
+            print(node_objects)
+            raise
         return tree
 
     def export_tree(self, root_id, tree_fn):
@@ -632,11 +629,11 @@ class Tree(object):
         """
 
         qroots = (
-            select([nodes.c.project_id, nodes.c.node_id])
+            select(nodes.c.project_id, nodes.c.node_id)
             .where(nodes.c.parent_id == None)
             .alias("roots")
         )
-        qprojects = select([projects, qroots.c.node_id]).select_from(
+        qprojects = select(projects, qroots.c.node_id).select_from(
             projects.join(qroots, qroots.c.project_id == projects.c.project_id)
         )
 
@@ -645,7 +642,7 @@ class Tree(object):
 
         result = self.connection.execute(qprojects).fetchall()
 
-        return [dict(r) for r in result]
+        return [r._asdict() for r in result]
 
     def get_project(self, project_id):
         """
@@ -662,9 +659,9 @@ class Tree(object):
         """
         )
 
-        result = self.connection.execute(stmt, project_id=project_id).fetchone()
+        result = self.connection.execute(stmt, {"project_id": project_id}).fetchone()
 
-        return dict(result)
+        return result._asdict()
 
     def get_path_ids(self, node_id):
         """
@@ -692,7 +689,7 @@ class Tree(object):
             level DESC
         """
         )
-        rows = self.connection.execute(stmt, node_id=node_id).fetchall()
+        rows = self.connection.execute(stmt, {"node_id": node_id}).fetchall()
         return [r for (r,) in rows]
 
     def create_project(self, name):
@@ -905,14 +902,14 @@ class Tree(object):
             # TODO: Directly use values instead of reading again from DB
             self.consolidate_node(node_id)
 
-        stmt = select([nodes]).where(nodes.c.node_id == node_id)
+        stmt = select(nodes).where(nodes.c.node_id == node_id)
 
-        result = self.connection.execute(stmt, node_id=node_id).fetchone()
+        result = self.connection.execute(stmt).fetchone()
 
         if result is None:
             raise TreeError("Node {} is unknown.".format(node_id))
 
-        return dict(result)
+        return result._asdict()
 
     def get_children(
         self, node_id, require_valid=True, order_by=None, include=None, supertree=False
@@ -938,7 +935,7 @@ class Tree(object):
         if require_valid:
             self.consolidate_node(node_id, depth="children")
 
-        stmt = select([nodes])
+        stmt = select(nodes)
 
         if supertree:
             stmt = stmt.where(nodes.c.superparent_id == node_id)
@@ -951,9 +948,9 @@ class Tree(object):
         if order_by is not None:
             stmt = stmt.order_by(text(order_by))
 
-        result = self.connection.execute(stmt, node_id=node_id).fetchall()
+        result = self.connection.execute(stmt).fetchall()
 
-        return [dict(r) for r in result]
+        return [r._asdict() for r in result]
 
     def merge_node_into(self, node_id, dest_node_id):
         """

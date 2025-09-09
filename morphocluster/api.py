@@ -122,14 +122,12 @@ def log(connection, action, node_id=None, reverse_action=None, data=None):
     auth = request.authorization
     username = auth.username if auth is not None else None  # type: ignore
 
-    stmt = models.log.insert(
-        {
-            "node_id": node_id,
-            "username": username,
-            "action": action,
-            "reverse_action": reverse_action,
-            "data": data,
-        }
+    stmt = models.log.insert().values(
+        node_id=node_id,
+        username=username,
+        action=action,
+        reverse_action=reverse_action,
+        data=data,
     )
 
     connection.execute(stmt)
@@ -669,7 +667,7 @@ def cache_serialize_page(endpoint, **kwargs):
             # ===================================================================
             # Construct response
             # ===================================================================
-            response = Response(result, mimetype=api.config["JSONIFY_MIMETYPE"])  # type: ignore
+            response = Response(result, mimetype="application/json")
 
             # =======================================================================
             # Generate Link response header

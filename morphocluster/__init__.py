@@ -80,12 +80,17 @@ def create_app(test_config: Optional[Mapping] = None):
 
     # Custom JSON encoder for Flask 3.0+
     import numpy as np
+    from datetime import datetime, date
 
     def numpy_json_default(obj):
         if isinstance(obj, np.floating):
             return float(obj)
         if isinstance(obj, np.integer):
             return int(obj)
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        if isinstance(obj, date):
+            return obj.isoformat()
         raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
 
     app.json.default = numpy_json_default
@@ -127,7 +132,7 @@ def create_app(test_config: Optional[Mapping] = None):
             return "Unknown object", 404
 
         response = send_from_directory(
-            app.config["IMAGES_DIR"], result["path"], conditional=True
+            app.config["IMAGES_DIR"], result.path, conditional=True
         )
 
         response.headers["Cache-Control"] += ", immutable"
