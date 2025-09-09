@@ -397,7 +397,9 @@ def extract_features(
         map_location = torch.device("cpu")
 
     if parameters_fn is not None:
-        parameters = torch.load(parameters_fn, map_location=map_location, weights_only=False)
+        parameters = torch.load(
+            parameters_fn, map_location=map_location, weights_only=False
+        )
         in_channels = parameters["features.conv1.weight"].shape[1]
         n_classes = parameters["classifier.weight"].shape[0]
         pretrained = False
