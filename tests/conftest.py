@@ -74,7 +74,7 @@ def flask_app(docker_postgres, docker_redis_persistent, session_tmp_path: pathli
     # create the app with common test config
     app = create_app(
         {
-            "SQLALCHEMY_DATABASE_URI": docker_postgres,
+            "MORPHOCLUSTER_DATABASE_URI": docker_postgres,
             "RQ_REDIS_URL": docker_redis_persistent,
             "DATA_DIR": str(data_dir),
         }

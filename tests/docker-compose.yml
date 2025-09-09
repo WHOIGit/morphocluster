@@ -1,13 +1,15 @@
-version: '3'
 services:
   postgres:
+    image: postgres:15-alpine
     environment:
       POSTGRES_USER: morphocluster
       POSTGRES_PASSWORD: morphocluster
       POSTGRES_DB: morphocluster
     ports:
       - "5432"
-    build: ../docker/postgresql
+    volumes:
+      - ../docker/postgresql/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
+    shm_size: '2gb'
   redis-persistent:
     image: "redis:5-alpine"
     ports:

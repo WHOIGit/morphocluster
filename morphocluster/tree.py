@@ -133,7 +133,7 @@ def _rquery_subtree(node_id, recurse_cb=None):
             The callback must return a clause that can be used in where().
     """
     q = (
-        select([nodes, literal(0).label("level")])
+        select(nodes, literal(0).label("level"))
         .where(nodes.c.node_id == node_id)
         .cte(recursive=True)
         .alias("q")
@@ -141,7 +141,7 @@ def _rquery_subtree(node_id, recurse_cb=None):
 
     s = nodes.alias("s")
 
-    rq = select([s, literal_column("level") + 1]).where(s.c.parent_id == q.c.node_id)
+    rq = select(s, literal_column("level") + 1).where(s.c.parent_id == q.c.node_id)
 
     if callable(recurse_cb):
         condition = recurse_cb(q, s)
@@ -174,51 +174,50 @@ class Tree(object):
         if not isinstance(tree, processing.Tree):
             tree = processing.Tree.from_saved(tree)
 
-        with self.connection.begin():
-            project_id = self.create_project(name)
+        project_id = self.create_project(name)
 
-            # Lock project
-            self.lock_project(project_id)
+        # Lock project
+        self.lock_project(project_id)
 
-            progress_bar = tqdm(
-                total=len(tree.nodes) + len(tree.objects), unit_scale=True
+        progress_bar = tqdm(
+            total=len(tree.nodes) + len(tree.objects), unit_scale=True
+        )
+
+        def progress_cb(nadd):
+            progress_bar.update(nadd)
+
+        for node in tree.topological_order():
+            name = (
+                node["name"]
+                if "name" in node and pd.notnull(node["name"])
+                else None
             )
 
-            def progress_cb(nadd):
-                progress_bar.update(nadd)
+            object_ids = tree.objects_for_node(node["node_id"])[
+                "object_id"
+            ].tolist()
 
-            for node in tree.topological_order():
-                name = (
-                    node["name"]
-                    if "name" in node and pd.notnull(node["name"])
-                    else None
-                )
+            tree_parent_id = (
+                int(node["parent_id"]) if pd.notnull(node["parent_id"]) else None
+            )
 
-                object_ids = tree.objects_for_node(node["node_id"])[
-                    "object_id"
-                ].tolist()
+            flags = _compute_flags(node, ("approved", "starred", "filled"))  # type: ignore
 
-                tree_parent_id = (
-                    int(node["parent_id"]) if pd.notnull(node["parent_id"]) else None
-                )
+            # Create node with objects
+            self.create_node(
+                project_id,
+                orig_node_id=int(node["node_id"]),
+                orig_parent=tree_parent_id,
+                object_ids=object_ids,
+                name=name,
+                progress_cb=progress_cb,
+                **flags,
+            )
 
-                flags = _compute_flags(node, ("approved", "starred", "filled"))  # type: ignore
-
-                # Create node with objects
-                self.create_node(
-                    project_id,
-                    orig_node_id=int(node["node_id"]),
-                    orig_parent=tree_parent_id,
-                    object_ids=object_ids,
-                    name=name,
-                    progress_cb=progress_cb,
-                    **flags,
-                )
-
-                # Update progress bar
-                progress_cb(1)
-            progress_bar.close()
-            print()
+            # Update progress bar
+            progress_cb(1)
+        progress_bar.close()
+        print()
 
         print("Done after {}s.".format(progress_bar.format_dict["elapsed"]))
 
@@ -232,62 +231,61 @@ class Tree(object):
         if not isinstance(tree, processing.Tree):
             tree = processing.Tree.from_saved(tree)
 
-        with self.connection.begin():
-            root_id = self.get_root_id(project_id)
+        root_id = self.get_root_id(project_id)
 
-            # Lock project
-            self.lock_project(project_id)
+        # Lock project
+        self.lock_project(project_id)
 
-            tree_root_id = tree.get_root_id()
+        tree_root_id = tree.get_root_id()
 
-            progress_bar = tqdm(total=len(tree.nodes), unit_scale=True)
+        progress_bar = tqdm(total=len(tree.nodes), unit_scale=True)
 
-            for node in tree.topological_order():
-                name = (
-                    node["name"]
-                    if "name" in node and pd.notnull(node["name"])
-                    else None
-                )
+        for node in tree.topological_order():
+            name = (
+                node["name"]
+                if "name" in node and pd.notnull(node["name"])
+                else None
+            )
 
-                object_ids = tree.objects_for_node(node["node_id"])[
-                    "object_id"
-                ].tolist()
+            object_ids = tree.objects_for_node(node["node_id"])[
+                "object_id"
+            ].tolist()
 
-                tree_parent_id = (
-                    int(node["parent_id"]) if pd.notnull(node["parent_id"]) else None
-                )
+            tree_parent_id = (
+                int(node["parent_id"]) if pd.notnull(node["parent_id"]) else None
+            )
 
-                flags = _compute_flags(node, ("approved", "starred", "filled"))  # type: ignore
+            flags = _compute_flags(node, ("approved", "starred", "filled"))  # type: ignore
 
-                # Were updating an existing project
-                if tree_parent_id is None:
-                    # Do not change root when updating
-                    print("Skipping root.")
+            # Were updating an existing project
+            if tree_parent_id is None:
+                # Do not change root when updating
+                print("Skipping root.")
+            else:
+                # Calculate parent
+                if tree_parent_id == tree_root_id:
+                    # If tree parent is tree root, use supplied root_id
+                    parent_cfg = dict(parent_id=root_id)
                 else:
-                    # Calculate parent
-                    if tree_parent_id == tree_root_id:
-                        # If tree parent is tree root, use supplied root_id
-                        parent_cfg = dict(parent_id=root_id)
-                    else:
-                        # If node further down, use orig_parent
-                        parent_cfg = dict(orig_parent=tree_parent_id)
+                    # If node further down, use orig_parent
+                    parent_cfg = dict(orig_parent=tree_parent_id)
 
-                    # Create new node without creating new objects
-                    new_node_id = self.create_node(
-                        project_id,
-                        orig_node_id=int(node["node_id"]),
-                        name=name,
-                        **parent_cfg,
-                        **flags,
-                    )
+                # Create new node without creating new objects
+                new_node_id = self.create_node(
+                    project_id,
+                    orig_node_id=int(node["node_id"]),
+                    name=name,
+                    **parent_cfg,
+                    **flags,
+                )
 
-                    # Relocate objects (but take only from root)
-                    self.relocate_objects(object_ids, new_node_id, src_node_id=root_id)
+                # Relocate objects (but take only from root)
+                self.relocate_objects(object_ids, new_node_id, src_node_id=root_id)
 
-                # Update progress bar
-                progress_bar.update()
-            progress_bar.close()
-            print()
+            # Update progress bar
+            progress_bar.update()
+        progress_bar.close()
+        print()
 
         print("Done after {}s.".format(progress_bar.format_dict["elapsed"]))
 
@@ -312,14 +310,14 @@ class Tree(object):
         """
         Acquire advisory transaction lock for a project.
         """
-        return self.connection.execute(select([func.pg_advisory_xact_lock(project_id)]))
+        return self.connection.execute(select(func.pg_advisory_xact_lock(project_id)))
 
     def lock_project_for_node(self, node_id):
         """
         Acquire advisory project lock given a node ID.
         """
         project_id = (
-            select([nodes.c.project_id]).where(nodes.c.node_id == node_id).as_scalar()
+            select(nodes.c.project_id).where(nodes.c.node_id == node_id).scalar_subquery()
         )
         return self.lock_project(project_id)
 
@@ -622,9 +620,8 @@ class Tree(object):
 
     def get_root_id(self, project_id):
         """Get the root node ID of a project."""
-        stmt = select(
-            [nodes.c.node_id],
-            (nodes.c.parent_id == None) & (nodes.c.project_id == project_id),
+        stmt = select(nodes.c.node_id).where(
+            (nodes.c.parent_id == None) & (nodes.c.project_id == project_id)
         )
         root_id = self.connection.execute(stmt).scalar()
 
@@ -714,7 +711,7 @@ class Tree(object):
         """
         Create a project with a name and return its id.
         """
-        stmt = projects.insert({"name": name})
+        stmt = projects.insert().values(name=name)
         result = self.connection.execute(stmt)
         project_id = result.inserted_primary_key[0]
 
@@ -739,19 +736,18 @@ class Tree(object):
         """
         if project_id is None and parent_id is not None:
             project_id = (
-                select([nodes.c.project_id])
+                select(nodes.c.project_id)
                 .where(nodes.c.node_id == parent_id)
-                .as_scalar()
+                .scalar_subquery()
             )
             # Make sure that the retrieved id is non-NULL by coalescing with -1 which will trigger an IntegrityError
             project_id = coalesce(project_id, -1)
 
         if parent_id is None and orig_parent is not None:
             # Subquery: Find parent by its orig_id
-            parent_id = select(
-                [nodes.c.node_id],
-                (nodes.c.orig_id == orig_parent) & (nodes.c.project_id == project_id),
-            ).as_scalar()
+            parent_id = select(nodes.c.node_id).where(
+                (nodes.c.orig_id == orig_parent) & (nodes.c.project_id == project_id)
+            ).scalar_subquery()
             # Make sure that the retrieved id is non-NULL by coalescing with -1 which will trigger an IntegrityError
             parent_id = coalesce(parent_id, -1)
 
@@ -763,7 +759,7 @@ class Tree(object):
             **kwargs,
         }
 
-        stmt = nodes.insert(row)
+        stmt = nodes.insert().values(**row)
 
         try:
             result = self.connection.execute(stmt)
@@ -1011,7 +1007,7 @@ class Tree(object):
         Get objects directly below a node.
         """
         stmt = (
-            select([objects])
+            select(objects)
             .select_from(objects.join(nodes_objects))
             .where(nodes_objects.c.node_id == node_id)
         )
@@ -1023,9 +1019,9 @@ class Tree(object):
         if limit is not None:
             stmt = stmt.limit(limit)
 
-        result = self.connection.execute(stmt, node_id=node_id).fetchall()
+        result = self.connection.execute(stmt).fetchall()
 
-        return [dict(r) for r in result]
+        return [r._asdict() for r in result]
 
     def get_n_objects(self, node_id):
         stmt = (
@@ -1559,261 +1555,259 @@ class Tree(object):
                 else:
                     raise NotImplementedError("Unknown depth string: {}".format(depth))
 
-            # Wrap everything in a transaction
-            with self.connection.begin():
-                # Acquire project lock
-                self.lock_project_for_node(node_id)
+            # Acquire project lock
+            self.lock_project_for_node(node_id)
 
-                if depth == -1:
-                    if descend_approved:
-                        recurse_cb = None
-                    else:
-                        # Only recurse into invalid nodes
-                        # Ensure validity up to a certain level
-                        def recurse_cb(q, s):
-                            return (q.c.cache_valid == False) | (q.c.approved == False)
-
+            if depth == -1:
+                if descend_approved:
+                    recurse_cb = None
                 else:
-                    if not descend_approved:
-                        raise NotImplementedError()
-
                     # Only recurse into invalid nodes
                     # Ensure validity up to a certain level
                     def recurse_cb(q, s):
-                        return (q.c.cache_valid == False) | (q.c.level < depth)
+                        return (q.c.cache_valid == False) | (q.c.approved == False)
 
-                invalid_subtree = _rquery_subtree(node_id, recurse_cb)
+            else:
+                if not descend_approved:
+                    raise NotImplementedError()
 
-                # Readily query real n_objects
-                n_objects = (
-                    select([func.count()])
-                    .select_from(nodes_objects)
-                    .where(nodes_objects.c.node_id == invalid_subtree.c.node_id)
-                    .as_scalar()
-                    .label("_n_objects_")
+                # Only recurse into invalid nodes
+                # Ensure validity up to a certain level
+                def recurse_cb(q, s):
+                    return (q.c.cache_valid == False) | (q.c.level < depth)
+
+            invalid_subtree = _rquery_subtree(node_id, recurse_cb)
+
+            # Readily query real n_objects
+            n_objects = (
+                select(func.count())
+                .select_from(nodes_objects)
+                .where(nodes_objects.c.node_id == invalid_subtree.c.node_id)
+                .scalar_subquery()
+                .label("_n_objects_")
+            )
+
+            # Readily query real n_children
+            children = nodes.alias("children")
+            n_children = (
+                select(func.count())
+                .select_from(children)
+                .where(children.c.parent_id == invalid_subtree.c.node_id)
+                .scalar_subquery()
+                .label("_n_children_")
+            )
+
+            stmt = select(invalid_subtree, n_objects, n_children).order_by(
+                invalid_subtree.c.level.desc()
+            )
+
+            with t.child("read_sql_query"):
+                invalid_subtree = pd.read_sql_query(
+                    stmt, self.connection, index_col="node_id"
                 )
 
-                # Readily query real n_children
-                children = nodes.alias("children")
-                n_children = (
-                    select([func.count()])
-                    .select_from(children)
-                    .where(children.c.parent_id == invalid_subtree.c.node_id)
-                    .as_scalar()
-                    .label("_n_children_")
+            if len(invalid_subtree) == 0:
+                raise TreeError("Unknown node: {}".format(node_id))
+
+            if not invalid_subtree["cache_valid"].all():
+                # 1. _n_objects, _n_children
+                invalid_subtree["_n_objects"] = invalid_subtree["_n_objects_"]
+                invalid_subtree["_n_children"] = invalid_subtree["_n_children_"]
+
+                invalid_subtree["__updated"] = False
+
+                # Initialize clusterer
+                clusterer = KMeans(N_PROTOTYPES, n_init=2)
+
+                # Iterate over DataFrame fixing the values along the way
+                progress_bar = tqdm(
+                    total=len(invalid_subtree), desc="Consolidating nodes"
                 )
+                for node_id in invalid_subtree.index:
+                    try:
+                        if invalid_subtree.at[node_id, "cache_valid"]:
+                            # Don't recalculate valid nodes as invalid_subtree (rightly)
+                            # doesn't include their children.
+                            continue
 
-                stmt = select([invalid_subtree, n_objects, n_children]).order_by(
-                    invalid_subtree.c.level.desc()
-                )
-
-                with t.child("read_sql_query"):
-                    invalid_subtree = pd.read_sql_query(
-                        stmt, self.connection, index_col="node_id"
-                    )
-
-                if len(invalid_subtree) == 0:
-                    raise TreeError("Unknown node: {}".format(node_id))
-
-                if not invalid_subtree["cache_valid"].all():
-                    # 1. _n_objects, _n_children
-                    invalid_subtree["_n_objects"] = invalid_subtree["_n_objects_"]
-                    invalid_subtree["_n_children"] = invalid_subtree["_n_children_"]
-
-                    invalid_subtree["__updated"] = False
-
-                    # Initialize clusterer
-                    clusterer = KMeans(N_PROTOTYPES, n_init=2)
-
-                    # Iterate over DataFrame fixing the values along the way
-                    progress_bar = tqdm(
-                        total=len(invalid_subtree), desc="Consolidating nodes"
-                    )
-                    for node_id in invalid_subtree.index:
-                        try:
-                            if invalid_subtree.at[node_id, "cache_valid"]:
-                                # Don't recalculate valid nodes as invalid_subtree (rightly)
-                                # doesn't include their children.
-                                continue
-
-                            child_selector = invalid_subtree["parent_id"] == node_id
-                            children = invalid_subtree.loc[child_selector]
-                            # Build collection of children.
-                            children_dict = MemberCollection(
-                                children.reset_index().to_dict("records"), "remove"
-                            )
-
-                            # 2. _n_objects_deep
-                            _n_objects = invalid_subtree.loc[node_id, "_n_objects"]
-                            _n_objects_deep = (
-                                _n_objects + children["_n_objects_deep"].sum()
-                            )
-                            invalid_subtree.at[node_id, "_n_objects_deep"] = (
-                                _n_objects_deep
-                            )
-
-                            # Sample 1000 objects to speed up the calculation
-                            with t.child("get_objects"):
-                                objects_ = MemberCollection(
-                                    self.get_objects(
-                                        node_id, order_by=objects.c.rand, limit=1000
-                                    ),
-                                    "raise",
-                                )
-
-                            # 3. _own_type_objects, _type_objects
-                            # TODO: Replace _own_type_objects with "_atypical_objects"
-                            with t.child("_calc_own_type_objects"):
-                                invalid_subtree.at[node_id, "_own_type_objects"] = (
-                                    self._calc_own_type_objects(children_dict, objects_)
-                                )
-                                # self._calc_own_type_objects(children_dict, objects_)
-
-                            with t.child("_calc_type_objects"):
-                                invalid_subtree.at[node_id, "_type_objects"] = (
-                                    self._calc_type_objects(children_dict, objects_)
-                                )
-
-                            if (
-                                len(children_dict) > 0
-                                and len(invalid_subtree.at[node_id, "_type_objects"])
-                                == 0
-                            ):
-                                print(
-                                    "\nNode {} has no type objects although it has children!".format(
-                                        node_id
-                                    )
-                                )
-
-                            # 4. _centroid
-                            with t.child("_centroid"):
-                                _centroid_vectors = []
-                                _centroid_supports = 0
-
-                                if len(objects_) > 0:
-                                    # Object mean, weighted with number of objects
-                                    _centroid_vectors.append(
-                                        np.sum(objects_.vectors, axis=0)
-                                    )
-                                    _centroid_supports += len(objects_)
-
-                                if len(children_dict) > 0:
-                                    children_support, children_vector = (
-                                        children_dict.get_support_and_vector()
-                                    )
-                                    if children_support > 0:
-                                        _centroid_vectors.append(children_vector)
-                                        _centroid_supports += children_support
-
-                                if (
-                                    len(_centroid_vectors) > 0
-                                    and _centroid_supports > 0
-                                ):
-                                    _centroid = (
-                                        np.sum(_centroid_vectors, axis=0)
-                                        / _centroid_supports
-                                    )
-                                else:
-                                    _centroid = None
-
-                                invalid_subtree.at[node_id, "_centroid"] = _centroid
-
-                                if invalid_subtree.loc[node_id, "_centroid"] is None:
-                                    print("\nNode {} has no centroid!".format(node_id))
-
-                            # 5. _prototypes
-                            with t.child("_prototypes"):
-                                _prototypes = []
-
-                                if len(objects_) > 0:
-                                    prots = Prototypes(clusterer)
-                                    prots.fit(objects_.vectors)
-                                    _prototypes.append(prots)
-                                if len(children_dict) > 0:
-                                    _prototypes.extend(
-                                        c["_prototypes"]
-                                        for c in children_dict
-                                        if c["_prototypes"] is not None
-                                    )
-
-                                if len(_prototypes) > 0:
-                                    try:
-                                        _prototypes = merge_prototypes(
-                                            _prototypes, N_PROTOTYPES
-                                        )
-                                    except:
-                                        for prots in _prototypes:
-                                            print(prots.prototypes_)
-                                        raise
-                                else:
-                                    _prototypes = None
-                                    print(
-                                        "\nNode {} has no prototypes!".format(node_id)
-                                    )
-
-                                invalid_subtree.at[node_id, "_prototypes"] = _prototypes
-
-                            # Finally, flag as updated
-                            invalid_subtree.at[node_id, "__updated"] = True
-
-                            progress_bar.update(1)
-                            progress_bar.set_postfix(node_id=node_id)
-                        except:
-                            print(f"Error processing node {node_id}")
-                            raise
-                    progress_bar.close()
-
-                    # Convert _n_objects_deep to int (might be object when containing NULL values in the database)
-                    invalid_subtree["_n_objects_deep"] = invalid_subtree[
-                        "_n_objects_deep"
-                    ].astype(int)
-
-                    # Flag all rows as valid
-                    invalid_subtree["cache_valid"] = True
-
-                    # Mask for updated rows
-                    updated_selection = invalid_subtree["__updated"] == True
-                    n_updated = updated_selection.sum()
-
-                    # Write back to database (if necessary)
-                    if n_updated > 0:
-                        # Write results back to database
-                        update_fields = [
-                            "cache_valid",
-                            "_centroid",
-                            "_prototypes",
-                            "_type_objects",
-                            "_own_type_objects",
-                            "_n_objects_deep",
-                            "_n_objects",
-                            "_n_children",
-                        ]
-
-                        stmt = (
-                            nodes.update()
-                            .where(nodes.c.node_id == bindparam("_node_id"))
-                            .values({k: bindparam(k) for k in update_fields})
+                        child_selector = invalid_subtree["parent_id"] == node_id
+                        children = invalid_subtree.loc[child_selector]
+                        # Build collection of children.
+                        children_dict = MemberCollection(
+                            children.reset_index().to_dict("records"), "remove"
                         )
 
-                        # Build the result list of dicts with _node_id and only update_fields
-                        result = invalid_subtree.loc[updated_selection, update_fields]
-                        result.index.rename("_node_id", inplace=True)
-                        result.reset_index(inplace=True)
+                        # 2. _n_objects_deep
+                        _n_objects = invalid_subtree.loc[node_id, "_n_objects"]
+                        _n_objects_deep = (
+                            _n_objects + children["_n_objects_deep"].sum()
+                        )
+                        invalid_subtree.at[node_id, "_n_objects_deep"] = (
+                            _n_objects_deep
+                        )
 
-                        self.connection.execute(stmt, result.to_dict("records"))
+                        # Sample 1000 objects to speed up the calculation
+                        with t.child("get_objects"):
+                            objects_ = MemberCollection(
+                                self.get_objects(
+                                    node_id, order_by=objects.c.rand, limit=1000
+                                ),
+                                "raise",
+                            )
 
-                        print("Updated {:d} nodes.".format(n_updated))
+                        # 3. _own_type_objects, _type_objects
+                        # TODO: Replace _own_type_objects with "_atypical_objects"
+                        with t.child("_calc_own_type_objects"):
+                            invalid_subtree.at[node_id, "_own_type_objects"] = (
+                                self._calc_own_type_objects(children_dict, objects_)
+                            )
+                            # self._calc_own_type_objects(children_dict, objects_)
 
-                if return_ == "node":
-                    return invalid_subtree.loc[node_id].to_dict()
+                        with t.child("_calc_type_objects"):
+                            invalid_subtree.at[node_id, "_type_objects"] = (
+                                self._calc_type_objects(children_dict, objects_)
+                            )
 
-                if return_ == "children":
-                    return invalid_subtree[
-                        invalid_subtree["parent_id"] == node_id
-                    ].to_dict("records")
+                        if (
+                            len(children_dict) > 0
+                            and len(invalid_subtree.at[node_id, "_type_objects"])
+                            == 0
+                        ):
+                            print(
+                                "\nNode {} has no type objects although it has children!".format(
+                                    node_id
+                                )
+                            )
 
-                if return_ == "raw":
-                    return invalid_subtree
+                        # 4. _centroid
+                        with t.child("_centroid"):
+                            _centroid_vectors = []
+                            _centroid_supports = 0
+
+                            if len(objects_) > 0:
+                                # Object mean, weighted with number of objects
+                                _centroid_vectors.append(
+                                    np.sum(objects_.vectors, axis=0)
+                                )
+                                _centroid_supports += len(objects_)
+
+                            if len(children_dict) > 0:
+                                children_support, children_vector = (
+                                    children_dict.get_support_and_vector()
+                                )
+                                if children_support > 0:
+                                    _centroid_vectors.append(children_vector)
+                                    _centroid_supports += children_support
+
+                            if (
+                                len(_centroid_vectors) > 0
+                                and _centroid_supports > 0
+                            ):
+                                _centroid = (
+                                    np.sum(_centroid_vectors, axis=0)
+                                    / _centroid_supports
+                                )
+                            else:
+                                _centroid = None
+
+                            invalid_subtree.at[node_id, "_centroid"] = _centroid
+
+                            if invalid_subtree.loc[node_id, "_centroid"] is None:
+                                print("\nNode {} has no centroid!".format(node_id))
+
+                        # 5. _prototypes
+                        with t.child("_prototypes"):
+                            _prototypes = []
+
+                            if len(objects_) > 0:
+                                prots = Prototypes(clusterer)
+                                prots.fit(objects_.vectors)
+                                _prototypes.append(prots)
+                            if len(children_dict) > 0:
+                                _prototypes.extend(
+                                    c["_prototypes"]
+                                    for c in children_dict
+                                    if c["_prototypes"] is not None
+                                )
+
+                            if len(_prototypes) > 0:
+                                try:
+                                    _prototypes = merge_prototypes(
+                                        _prototypes, N_PROTOTYPES
+                                    )
+                                except:
+                                    for prots in _prototypes:
+                                        print(prots.prototypes_)
+                                    raise
+                            else:
+                                _prototypes = None
+                                print(
+                                    "\nNode {} has no prototypes!".format(node_id)
+                                )
+
+                            invalid_subtree.at[node_id, "_prototypes"] = _prototypes
+
+                        # Finally, flag as updated
+                        invalid_subtree.at[node_id, "__updated"] = True
+
+                        progress_bar.update(1)
+                        progress_bar.set_postfix(node_id=node_id)
+                    except:
+                        print(f"Error processing node {node_id}")
+                        raise
+                progress_bar.close()
+
+                # Convert _n_objects_deep to int (might be object when containing NULL values in the database)
+                invalid_subtree["_n_objects_deep"] = invalid_subtree[
+                    "_n_objects_deep"
+                ].astype(int)
+
+                # Flag all rows as valid
+                invalid_subtree["cache_valid"] = True
+
+                # Mask for updated rows
+                updated_selection = invalid_subtree["__updated"] == True
+                n_updated = updated_selection.sum()
+
+                # Write back to database (if necessary)
+                if n_updated > 0:
+                    # Write results back to database
+                    update_fields = [
+                        "cache_valid",
+                        "_centroid",
+                        "_prototypes",
+                        "_type_objects",
+                        "_own_type_objects",
+                        "_n_objects_deep",
+                        "_n_objects",
+                        "_n_children",
+                    ]
+
+                    stmt = (
+                        nodes.update()
+                        .where(nodes.c.node_id == bindparam("_node_id"))
+                        .values({k: bindparam(k) for k in update_fields})
+                    )
+
+                    # Build the result list of dicts with _node_id and only update_fields
+                    result = invalid_subtree.loc[updated_selection, update_fields]
+                    result.index.rename("_node_id", inplace=True)
+                    result.reset_index(inplace=True)
+
+                    self.connection.execute(stmt, result.to_dict("records"))
+
+                    print("Updated {:d} nodes.".format(n_updated))
+
+            if return_ == "node":
+                return invalid_subtree.loc[node_id].to_dict()
+
+            if return_ == "children":
+                return invalid_subtree[
+                    invalid_subtree["parent_id"] == node_id
+                ].to_dict("records")
+
+            if return_ == "raw":
+                return invalid_subtree
 
 
 if __name__ in ("__main__", "builtins"):

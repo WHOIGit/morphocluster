@@ -307,13 +307,13 @@ def init_app(app):
 
             # TODO: In the end, print a summary of how many objects have a feature vector now.
             stmt = (
-                select([func.count()])
+                select(func.count())
                 .select_from(models.objects)
                 .where(models.objects.c.vector.isnot(None))
             )
             n_initialized = conn.execute(stmt).scalar()
 
-            stmt = select([func.count()]).select_from(models.objects)
+            stmt = select(func.count()).select_from(models.objects)
             n_total = conn.execute(stmt).scalar()
 
             print(
@@ -331,20 +331,19 @@ def init_app(app):
         Load a project from a saved tree.
         """
 
-        with database.engine.connect() as conn:
+        with database.engine.begin() as conn:
             tree = Tree(conn)
 
             if project_name is None:
                 project_name = os.path.basename(os.path.splitext(tree_fn)[0])
 
-            with conn.begin():
-                print("Loading {}...".format(tree_fn))
-                project_id = tree.load_project(project_name, tree_fn)
-                root_id = tree.get_root_id(project_id)
+            print("Loading {}...".format(tree_fn))
+            project_id = tree.load_project(project_name, tree_fn)
+            root_id = tree.get_root_id(project_id)
 
-                if consolidate:
-                    print("Consolidating ...")
-                    tree.consolidate_node(root_id)
+            if consolidate:
+                print("Consolidating ...")
+                tree.consolidate_node(root_id)
 
             print("Root ID: {}".format(root_id))
             print("Project ID: {}".format(project_id))
@@ -359,34 +358,33 @@ def init_app(app):
         Load a project from a saved tree.
         """
 
-        with database.engine.connect() as conn:
+        with database.engine.begin() as conn:
             tree = Tree(conn)
 
-            with conn.begin():
-                project = tree.get_project(project_id)
-                project_str = f"{project['name']} ({project['project_id']})"
+            project = tree.get_project(project_id)
+            project_str = f"{project['name']} ({project['project_id']})"
 
-                if not click.confirm(f"Update {project_str} with {tree_fn}?"):
-                    return
+            if not click.confirm(f"Update {project_str} with {tree_fn}?"):
+                return
 
-                print(f"Updating {project_str} with {tree_fn}...")
-                saved_tree = processing.Tree.from_saved(tree_fn)
+            print(f"Updating {project_str} with {tree_fn}...")
+            saved_tree = processing.Tree.from_saved(tree_fn)
 
-                # Apply offset
-                if with_offset:
-                    offset = (
-                        tree.get_orig_node_id_offset(project["project_id"])
-                        - saved_tree.nodes["node_id"].min()
-                    )
-                    saved_tree.offset_node_ids(offset)
+            # Apply offset
+            if with_offset:
+                offset = (
+                    tree.get_orig_node_id_offset(project["project_id"])
+                    - saved_tree.nodes["node_id"].min()
+                )
+                saved_tree.offset_node_ids(offset)
 
-                project_id = tree.update_project(project["project_id"], saved_tree)
+            project_id = tree.update_project(project["project_id"], saved_tree)
 
-                root_id = tree.get_root_id(project_id)
+            root_id = tree.get_root_id(project_id)
 
-                if consolidate:
-                    print("Consolidating ...")
-                    tree.consolidate_node(root_id)
+            if consolidate:
+                print("Consolidating ...")
+                tree.consolidate_node(root_id)
 
             print("Root ID: {}".format(root_id))
             print("Project ID: {}".format(project_id))
@@ -512,9 +510,9 @@ def init_app(app):
 
         try:
             with database.engine.connect() as conn:
-                stmt = models.users.update(
-                    models.users.c.username == username, {"pwhash": pwhash}
-                )
+                stmt = models.users.update().where(
+                    models.users.c.username == username
+                ).values(pwhash=pwhash)
                 conn.execute(stmt)
                 conn.commit()
         except IntegrityError as e:

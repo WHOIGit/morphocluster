@@ -19,14 +19,11 @@ def db_connection(flask_app):
 
 @pytest.fixture(scope="module")
 def point_table(flask_app, db_connection):
-    with db_connection.begin() as txn:
-        _point_table.create(db_connection)
-
-        yield _point_table
-
-        _point_table.drop(db_connection)
-
-        txn.rollback()
+    _point_table.create(db_connection)
+    
+    yield _point_table
+    
+    _point_table.drop(db_connection)
 
 
 # @pytest.mark.skip()
