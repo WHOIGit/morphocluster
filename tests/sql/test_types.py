@@ -20,9 +20,9 @@ def db_connection(flask_app):
 @pytest.fixture(scope="module")
 def point_table(flask_app, db_connection):
     _point_table.create(db_connection)
-    
+
     yield _point_table
-    
+
     _point_table.drop(db_connection)
 
 

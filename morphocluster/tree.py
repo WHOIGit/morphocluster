@@ -179,23 +179,15 @@ class Tree(object):
         # Lock project
         self.lock_project(project_id)
 
-        progress_bar = tqdm(
-            total=len(tree.nodes) + len(tree.objects), unit_scale=True
-        )
+        progress_bar = tqdm(total=len(tree.nodes) + len(tree.objects), unit_scale=True)
 
         def progress_cb(nadd):
             progress_bar.update(nadd)
 
         for node in tree.topological_order():
-            name = (
-                node["name"]
-                if "name" in node and pd.notnull(node["name"])
-                else None
-            )
+            name = node["name"] if "name" in node and pd.notnull(node["name"]) else None
 
-            object_ids = tree.objects_for_node(node["node_id"])[
-                "object_id"
-            ].tolist()
+            object_ids = tree.objects_for_node(node["node_id"])["object_id"].tolist()
 
             tree_parent_id = (
                 int(node["parent_id"]) if pd.notnull(node["parent_id"]) else None
@@ -241,15 +233,9 @@ class Tree(object):
         progress_bar = tqdm(total=len(tree.nodes), unit_scale=True)
 
         for node in tree.topological_order():
-            name = (
-                node["name"]
-                if "name" in node and pd.notnull(node["name"])
-                else None
-            )
+            name = node["name"] if "name" in node and pd.notnull(node["name"]) else None
 
-            object_ids = tree.objects_for_node(node["node_id"])[
-                "object_id"
-            ].tolist()
+            object_ids = tree.objects_for_node(node["node_id"])["object_id"].tolist()
 
             tree_parent_id = (
                 int(node["parent_id"]) if pd.notnull(node["parent_id"]) else None
@@ -317,7 +303,9 @@ class Tree(object):
         Acquire advisory project lock given a node ID.
         """
         project_id = (
-            select(nodes.c.project_id).where(nodes.c.node_id == node_id).scalar_subquery()
+            select(nodes.c.project_id)
+            .where(nodes.c.node_id == node_id)
+            .scalar_subquery()
         )
         return self.lock_project(project_id)
 
@@ -745,9 +733,14 @@ class Tree(object):
 
         if parent_id is None and orig_parent is not None:
             # Subquery: Find parent by its orig_id
-            parent_id = select(nodes.c.node_id).where(
-                (nodes.c.orig_id == orig_parent) & (nodes.c.project_id == project_id)
-            ).scalar_subquery()
+            parent_id = (
+                select(nodes.c.node_id)
+                .where(
+                    (nodes.c.orig_id == orig_parent)
+                    & (nodes.c.project_id == project_id)
+                )
+                .scalar_subquery()
+            )
             # Make sure that the retrieved id is non-NULL by coalescing with -1 which will trigger an IntegrityError
             parent_id = coalesce(parent_id, -1)
 
@@ -1639,12 +1632,8 @@ class Tree(object):
 
                         # 2. _n_objects_deep
                         _n_objects = invalid_subtree.loc[node_id, "_n_objects"]
-                        _n_objects_deep = (
-                            _n_objects + children["_n_objects_deep"].sum()
-                        )
-                        invalid_subtree.at[node_id, "_n_objects_deep"] = (
-                            _n_objects_deep
-                        )
+                        _n_objects_deep = _n_objects + children["_n_objects_deep"].sum()
+                        invalid_subtree.at[node_id, "_n_objects_deep"] = _n_objects_deep
 
                         # Sample 1000 objects to speed up the calculation
                         with t.child("get_objects"):
@@ -1670,8 +1659,7 @@ class Tree(object):
 
                         if (
                             len(children_dict) > 0
-                            and len(invalid_subtree.at[node_id, "_type_objects"])
-                            == 0
+                            and len(invalid_subtree.at[node_id, "_type_objects"]) == 0
                         ):
                             print(
                                 "\nNode {} has no type objects although it has children!".format(
@@ -1699,10 +1687,7 @@ class Tree(object):
                                     _centroid_vectors.append(children_vector)
                                     _centroid_supports += children_support
 
-                            if (
-                                len(_centroid_vectors) > 0
-                                and _centroid_supports > 0
-                            ):
+                            if len(_centroid_vectors) > 0 and _centroid_supports > 0:
                                 _centroid = (
                                     np.sum(_centroid_vectors, axis=0)
                                     / _centroid_supports
@@ -1741,9 +1726,7 @@ class Tree(object):
                                     raise
                             else:
                                 _prototypes = None
-                                print(
-                                    "\nNode {} has no prototypes!".format(node_id)
-                                )
+                                print("\nNode {} has no prototypes!".format(node_id))
 
                             invalid_subtree.at[node_id, "_prototypes"] = _prototypes
 
@@ -1802,9 +1785,9 @@ class Tree(object):
                 return invalid_subtree.loc[node_id].to_dict()
 
             if return_ == "children":
-                return invalid_subtree[
-                    invalid_subtree["parent_id"] == node_id
-                ].to_dict("records")
+                return invalid_subtree[invalid_subtree["parent_id"] == node_id].to_dict(
+                    "records"
+                )
 
             if return_ == "raw":
                 return invalid_subtree

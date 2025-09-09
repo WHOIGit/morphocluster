@@ -510,9 +510,11 @@ def init_app(app):
 
         try:
             with database.engine.connect() as conn:
-                stmt = models.users.update().where(
-                    models.users.c.username == username
-                ).values(pwhash=pwhash)
+                stmt = (
+                    models.users.update()
+                    .where(models.users.c.username == username)
+                    .values(pwhash=pwhash)
+                )
                 conn.execute(stmt)
                 conn.commit()
         except IntegrityError as e:
