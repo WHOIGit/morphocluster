@@ -37,6 +37,6 @@ class JobSchema(Schema):
 class LogSchema(Schema):
     action = fields.Str(required=True)
 
-    node_id = fields.Int(dump_default=None)
-    reverse_action = fields.Str(dump_default=None)
-    data = fields.Raw(dump_default=None)
+    node_id = fields.Int(load_default=None, dump_default=None, allow_none=True)
+    reverse_action = fields.Str(load_default=None, dump_default=None, allow_none=True)
+    data = fields.Raw(load_default=None, dump_default=None, allow_none=True)

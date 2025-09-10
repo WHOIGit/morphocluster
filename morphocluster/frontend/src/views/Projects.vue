@@ -127,7 +127,7 @@ export default {
                             .getNodeProgress(p.node_id)
                             .then((progress) => {
                                 console.log(`Got progress for ${p.node_id}.`);
-                                this.$set(p, "progress", progress);
+                                p.progress = progress;
                             });
                     })
                 );

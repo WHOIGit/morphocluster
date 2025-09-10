@@ -40,18 +40,16 @@
                 <member-preview v-bind:member="m" />
             </div>
 
-            <infinite-loading
-                ref="infload"
-                v-if="node"
-                @infinite="updateNodeMembers"
-                spinner="circles"
-            >
-                <div slot="no-more">
-                    <span v-b-tooltip.hover.html title="End of list."
-                        >&#8718;</span
-                    >
+            <div ref="scrollTrigger" class="scroll-trigger" v-if="node">
+                <div v-if="!allNodeMembersLoaded" class="text-center my-3">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
                 </div>
-            </infinite-loading>
+                <div v-if="allNodeMembersLoaded" class="text-center my-3 text-muted">
+                    <small><span v-b-tooltip.hover.html title="End of list.">&#8718;</span></small>
+                </div>
+            </div>
         </div>
         <div v-if="rec_status == 'loading'">Loading recommendations...</div>
         <div
@@ -201,8 +199,6 @@
 import axios from "axios";
 import shuffle from "lodash/shuffle";
 
-import InfiniteLoading from "v3-infinite-loading";
-import { Spinner } from "v3-infinite-loading";
 
 import mixins from "@/mixins.js";
 
@@ -268,6 +264,7 @@ export default {
             saving_total_ms: null,
             turtle_mode: false,
             turtle_mode_auto_changed: false,
+            allNodeMembersLoaded: false,
 
             /* Accepted members */
             accepted_members_page: [],
@@ -293,9 +290,7 @@ export default {
     },
     components: {
         MemberPreview,
-        InfiniteLoading,
         MessageLog,
-        Spinner,
         DarkModeControl,
     },
     mixins: [mixins],
@@ -325,9 +320,13 @@ export default {
     },
     mounted() {
         window.addEventListener("keypress", this.keypress);
+        this.setupNodeIntersectionObserver();
     },
     beforeDestroy() {
         window.removeEventListener("keypress", this.keypress);
+        if (this.nodeObserver) {
+            this.nodeObserver.disconnect();
+        }
     },
     computed: {
         n_valid_pages() {
@@ -357,6 +356,8 @@ export default {
             Object.assign(this.$data, this.$options.data(), {
                 project: this.project,
             });
+            
+            this.allNodeMembersLoaded = false;
 
             // Time when the view is visited
             this.log_data.time_visit = Date.now();
@@ -431,6 +432,9 @@ export default {
                 })
                 .then(() => {
                     this.node_status = "loaded";
+                    this.$nextTick(() => {
+                        this.setupNodeIntersectionObserver();
+                    });
                 })
                 .catch((e) => {
                     this.axiosErrorHandler(e);
@@ -462,6 +466,29 @@ export default {
                 .catch((e) => {
                     this.axiosErrorHandler(e);
                 });
+        },
+        setupNodeIntersectionObserver() {
+            if (this.$refs.scrollTrigger) {
+                this.nodeObserver = new IntersectionObserver((entries) => {
+                    const entry = entries[0];
+                    if (entry.isIntersecting && !this.allNodeMembersLoaded) {
+                        this.loadMoreNodeMembers();
+                    }
+                }, { threshold: 0.1 });
+                
+                this.nodeObserver.observe(this.$refs.scrollTrigger);
+            }
+        },
+        loadMoreNodeMembers() {
+            if (this.allNodeMembersLoaded) return;
+            
+            const mockState = {
+                loaded: () => {},
+                complete: () => { this.allNodeMembersLoaded = true; },
+                reset: () => {}
+            };
+            
+            this.updateNodeMembers(mockState);
         },
         // updateNodeMembers gets called as an infinite loading handler.
         updateNodeMembers($state) {

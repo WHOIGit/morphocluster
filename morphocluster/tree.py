@@ -979,7 +979,7 @@ class Tree(object):
             self.connection.execute(stmt)
 
             # Delete node
-            stmt = nodes.delete(nodes.c.node_id == node_id)
+            stmt = nodes.delete().where(nodes.c.node_id == node_id)
             self.connection.execute(stmt)
 
             # Invalidate dest node
@@ -1107,7 +1107,7 @@ class Tree(object):
 
             objects_ = []
 
-            rejected_object_ids = select([nodes_rejected_objects.c.object_id]).where(
+            rejected_object_ids = select(nodes_rejected_objects.c.object_id).where(
                 nodes_rejected_objects.c.node_id == node_id
             )
 
@@ -1132,11 +1132,9 @@ class Tree(object):
                     # Get objects below parent_id that are not rejected by node_id
                     stmt = (
                         select(
-                            [
-                                objects.c.object_id,
-                                objects.c.path,
-                                func.least(*distances_expression).label("distance"),
-                            ]
+                            objects.c.object_id,
+                            objects.c.path,
+                            func.least(*distances_expression).label("distance"),
                         )
                         .select_from(objects.join(nodes_objects))
                         .where(
@@ -1152,7 +1150,7 @@ class Tree(object):
                     with c.child("fetch"):
                         result = r.fetchall()
 
-                    objects_.extend(dict(r) for r in result)
+                    objects_.extend(r._asdict() for r in result)
 
             if not objects_:
                 return []
@@ -1259,50 +1257,49 @@ class Tree(object):
         if len(object_ids) == 0:
             return
 
-        with self.connection.begin():
-            # Acquire project lock
-            self.lock_project_for_node(node_id)
+        # Acquire project lock
+        self.lock_project_for_node(node_id)
 
-            # Poject id of the new node
-            project_id = select([nodes.c.project_id]).where(nodes.c.node_id == node_id)
-            project_id = self.connection.execute(project_id).scalar()
+        # Poject id of the new node
+        project_id = select(nodes.c.project_id).where(nodes.c.node_id == node_id)
+        project_id = self.connection.execute(project_id).scalar()
 
-            new_node_path = self.get_path_ids(node_id)
+        new_node_path = self.get_path_ids(node_id)
 
-            # Find current node_ids of the objects
-            # This is slow!
-            # old_node_ids is required for invalidation
-            # TODO: Distinct!
-            stmt = (
-                select([nodes_objects.c.node_id])
-                .with_for_update()
-                .where(
-                    nodes_objects.c.object_id.in_(object_ids)
-                    & (nodes_objects.c.project_id == project_id)
-                )
+        # Find current node_ids of the objects
+        # This is slow!
+        # old_node_ids is required for invalidation
+        # TODO: Distinct!
+        stmt = (
+            select(nodes_objects.c.node_id)
+            .with_for_update()
+            .where(
+                nodes_objects.c.object_id.in_(object_ids)
+                & (nodes_objects.c.project_id == project_id)
             )
+        )
 
-            if src_node_id is not None:
-                stmt = stmt.where(nodes_objects.c.node_id == src_node_id)
+        if src_node_id is not None:
+            stmt = stmt.where(nodes_objects.c.node_id == src_node_id)
 
-            old_node_ids = [
-                r["node_id"] for r in self.connection.execute(stmt).fetchall()
-            ]
+        old_node_ids = [
+            r.node_id for r in self.connection.execute(stmt).fetchall()
+        ]
 
-            # Update assignments
-            stmt = (
-                nodes_objects.update()
-                .values({"node_id": node_id})
-                .where(
-                    nodes_objects.c.object_id.in_(object_ids)
-                    & (nodes_objects.c.project_id == project_id)
-                )
+        # Update assignments
+        stmt = (
+            nodes_objects.update()
+            .values({"node_id": node_id})
+            .where(
+                nodes_objects.c.object_id.in_(object_ids)
+                & (nodes_objects.c.project_id == project_id)
             )
+        )
 
-            if src_node_id is not None:
-                stmt = stmt.where(nodes_objects.c.node_id == src_node_id)
+        if src_node_id is not None:
+            stmt = stmt.where(nodes_objects.c.node_id == src_node_id)
 
-            self.connection.execute(stmt)
+        self.connection.execute(stmt)
 
             # # Return distinct old `parent_id`s
             # stmt = text("""
@@ -1324,16 +1321,16 @@ class Tree(object):
             #                                  object_ids=tuple(object_ids)
             #                                  ).fetchall()
 
-            # Invalidate subtree rooted at first common ancestor
-            paths = [new_node_path] + [old_node_ids]
-            paths_to_update = _paths_from_common_ancestor(paths)
-            nodes_to_invalidate = set(sum(paths_to_update, []))
+        # Invalidate subtree rooted at first common ancestor
+        paths = [new_node_path] + [old_node_ids]
+        paths_to_update = _paths_from_common_ancestor(paths)
+        nodes_to_invalidate = set(sum(paths_to_update, []))
 
-            print("Invalidating {!r}...".format(nodes_to_invalidate))
+        print("Invalidating {!r}...".format(nodes_to_invalidate))
 
-            assert node_id in nodes_to_invalidate
+        assert node_id in nodes_to_invalidate
 
-            self.invalidate_nodes(nodes_to_invalidate, unapprove)
+        self.invalidate_nodes(nodes_to_invalidate, unapprove)
 
     def reject_objects(self, node_id, object_ids):
         """
@@ -1343,25 +1340,24 @@ class Tree(object):
         if not object_ids:
             return
 
-        with self.connection.begin():
-            # Acquire project lock
-            self.lock_project_for_node(node_id)
+        # Acquire project lock
+        self.lock_project_for_node(node_id)
 
-            # Poject id of the node
-            project_id = select([nodes.c.project_id]).where(nodes.c.node_id == node_id)
-            project_id = self.connection.execute(project_id).scalar()
+        # Poject id of the node
+        project_id = select(nodes.c.project_id).where(nodes.c.node_id == node_id)
+        project_id = self.connection.execute(project_id).scalar()
 
-            new_node_path = self.get_path_ids(node_id)
+        new_node_path = self.get_path_ids(node_id)
 
-            # Update assignments
-            stmt = nodes_rejected_objects.insert()
-            self.connection.execute(
-                stmt,
-                [
-                    {"node_id": node_id, "project_id": project_id, "object_id": oid}
-                    for oid in object_ids
-                ],
-            )
+        # Update assignments
+        stmt = nodes_rejected_objects.insert()
+        self.connection.execute(
+            stmt,
+            [
+                {"node_id": node_id, "project_id": project_id, "object_id": oid}
+                for oid in object_ids
+            ],
+        )
 
     def update_node(self, node_id, data):
         if "parent_id" in data:
@@ -1465,22 +1461,22 @@ class Tree(object):
         # TODO: Could be replaced by cached values
         children = nodes.alias("children")
         n_children = (
-            select([func.count()])
+            select(func.count())
             .select_from(children)
             .where(children.c.parent_id == subtree.c.node_id)
-            .as_scalar()
+            .scalar_subquery()
             .label("n_children")
         )
 
         n_objects = (
-            select([func.count()])
+            select(func.count())
             .select_from(nodes_objects)
             .where(nodes_objects.c.node_id == subtree.c.node_id)
-            .as_scalar()
+            .scalar_subquery()
             .label("n_objects")
         )
 
-        stmt = select([subtree.c.node_id])
+        stmt = select(subtree.c.node_id)
 
         if filter is not None:
             stmt = stmt.where(filter(subtree))
@@ -1514,9 +1510,9 @@ class Tree(object):
             nodes.select().where(nodes.c.node_id == node_id)
         ).first()
 
-        if node["parent_id"]:
-            print("No matching children, trying parent: {}".format(node["parent_id"]))
-            return self.get_next_node(node["parent_id"], leaf, recurse_cb, filter)
+        if node.parent_id:
+            print("No matching children, trying parent: {}".format(node.parent_id))
+            return self.get_next_node(node.parent_id, leaf, recurse_cb, filter)
 
         return None
 

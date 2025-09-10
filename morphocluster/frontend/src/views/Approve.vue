@@ -39,15 +39,13 @@
                     />
                 </div>
             </div>
-            <infinite-loading
-                v-if="node"
-                @infinite="updateMembers"
-                spinner="circles"
-            >
-                <template #no-more>
-                    <div />
-                </template>
-            </infinite-loading>
+            <div ref="scrollTrigger" class="scroll-trigger">
+                <div v-if="!allMembersLoaded" class="text-center my-3">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
         </div>
         <div
             id="progress"
@@ -125,7 +123,6 @@
 <script>
 import axios from "axios";
 
-import InfiniteLoading from "v3-infinite-loading";
 
 import mixins from "@/mixins.js";
 
@@ -146,6 +143,7 @@ export default {
             node_members: [],
             members_url: null,
             progress: null,
+            allMembersLoaded: false,
             member_controls: [
                 {
                     event: "moveup",
@@ -160,15 +158,18 @@ export default {
     },
     mounted() {
         window.addEventListener("keypress", this.keypress);
+        this.setupIntersectionObserver();
     },
     beforeDestroy() {
         window.removeEventListener("keypress", this.keypress);
+        if (this.observer) {
+            this.observer.disconnect();
+        }
     },
     components: {
         MemberPreview,
         MessageLog,
         // NodeHeader,
-        InfiniteLoading,
         DarkModeControl,
     },
     mixins: [mixins],
@@ -181,6 +182,7 @@ export default {
             this.node = null;
             this.node_members = [];
             this.members_url = null;
+            this.allMembersLoaded = false;
 
             const project_id = parseInt(this.$route.params.project_id);
 
@@ -244,10 +246,35 @@ export default {
                 })
                 .then(() => {
                     this.loading = false;
+                    this.$nextTick(() => {
+                        this.setupIntersectionObserver();
+                    });
                 })
                 .catch((e) => {
                     this.axiosErrorHandler(e);
                 });
+        },
+        setupIntersectionObserver() {
+            if (this.$refs.scrollTrigger) {
+                this.observer = new IntersectionObserver((entries) => {
+                    const entry = entries[0];
+                    if (entry.isIntersecting && !this.allMembersLoaded) {
+                        this.loadMoreMembers();
+                    }
+                }, { threshold: 0.1 });
+                
+                this.observer.observe(this.$refs.scrollTrigger);
+            }
+        },
+        loadMoreMembers() {
+            if (this.allMembersLoaded) return;
+            
+            const mockState = {
+                loaded: () => {},
+                complete: () => { this.allMembersLoaded = true; }
+            };
+            
+            this.updateMembers(mockState);
         },
         // updateMembers gets called as an infinite loading handler.
         updateMembers($state) {

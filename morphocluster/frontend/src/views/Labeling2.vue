@@ -11,16 +11,19 @@
                         />
                 </div>
             </div>
-            <infinite-loading
-                @infinite="updateMembers"
-                spinner="circles" />
+            <div ref="scrollTrigger" class="scroll-trigger">
+                <div v-if="!allMembersLoaded" class="text-center my-3">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </template>
 
 <script>
 import axios from "axios";
-import InfiniteLoading from "v3-infinite-loading";
 
 import MemberPreview from "@/components/MemberPreview.vue";
 import NodeHeader from "@/components/NodeHeader.vue";
@@ -32,7 +35,6 @@ export default {
   },
   components: {
     MemberPreview,
-    InfiniteLoading,
     NodeHeader
   },
   data() {
@@ -41,12 +43,35 @@ export default {
       node_members: [],
       message: null,
       members_url: null,
-      page: null
+      page: null,
+      allMembersLoaded: false
     };
   },
   methods: {
     setMessage: function(msg) {
       this.message = msg;
+    },
+    setupIntersectionObserver() {
+      if (this.$refs.scrollTrigger) {
+        this.observer = new IntersectionObserver((entries) => {
+          const entry = entries[0];
+          if (entry.isIntersecting && !this.allMembersLoaded) {
+            this.loadMoreMembers();
+          }
+        }, { threshold: 0.1 });
+        
+        this.observer.observe(this.$refs.scrollTrigger);
+      }
+    },
+    loadMoreMembers() {
+      if (this.allMembersLoaded) return;
+      
+      const mockState = {
+        loaded: () => {},
+        complete: () => { this.allMembersLoaded = true; }
+      };
+      
+      this.updateMembers(mockState);
     },
     updateMembers($state) {
       var updateMembersUrl = false;
@@ -89,11 +114,19 @@ export default {
       .get(`/api/nodes/${this.node_id}`)
       .then(response => {
         this.node = response.data;
+        this.$nextTick(() => {
+          this.setupIntersectionObserver();
+        });
       })
       .catch(e => {
         this.setMessage(e.message);
         console.log(e);
       });
+  },
+  beforeDestroy() {
+    if (this.observer) {
+      this.observer.disconnect();
+    }
   }
 };
 </script>
