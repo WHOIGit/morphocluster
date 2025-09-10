@@ -1282,9 +1282,7 @@ class Tree(object):
         if src_node_id is not None:
             stmt = stmt.where(nodes_objects.c.node_id == src_node_id)
 
-        old_node_ids = [
-            r.node_id for r in self.connection.execute(stmt).fetchall()
-        ]
+        old_node_ids = [r.node_id for r in self.connection.execute(stmt).fetchall()]
 
         # Update assignments
         stmt = (
@@ -1301,25 +1299,25 @@ class Tree(object):
 
         self.connection.execute(stmt)
 
-            # # Return distinct old `parent_id`s
-            # stmt = text("""
-            # WITH updater AS (
-            #     UPDATE nodes_objects x
-            #     SET node_id = :node_id
-            #     FROM  (SELECT object_id, node_id FROM nodes_objects
-            #         WHERE project_id = :project_id AND object_id IN :object_ids FOR UPDATE) y
-            #     WHERE  project_id = :project_id AND x.object_id = y.object_id
-            #     RETURNING y.node_id AS old_node_id
-            # )
-            # SELECT DISTINCT old_node_id FROM updater;
-            # """)
+        # # Return distinct old `parent_id`s
+        # stmt = text("""
+        # WITH updater AS (
+        #     UPDATE nodes_objects x
+        #     SET node_id = :node_id
+        #     FROM  (SELECT object_id, node_id FROM nodes_objects
+        #         WHERE project_id = :project_id AND object_id IN :object_ids FOR UPDATE) y
+        #     WHERE  project_id = :project_id AND x.object_id = y.object_id
+        #     RETURNING y.node_id AS old_node_id
+        # )
+        # SELECT DISTINCT old_node_id FROM updater;
+        # """)
 
-            # # Fetch old_parent_ids
-            # result = self.connection.execute(stmt,
-            #                                  node_id=node_id,
-            #                                  project_id=project_id,
-            #                                  object_ids=tuple(object_ids)
-            #                                  ).fetchall()
+        # # Fetch old_parent_ids
+        # result = self.connection.execute(stmt,
+        #                                  node_id=node_id,
+        #                                  project_id=project_id,
+        #                                  object_ids=tuple(object_ids)
+        #                                  ).fetchall()
 
         # Invalidate subtree rooted at first common ancestor
         paths = [new_node_path] + [old_node_ids]
