@@ -39,7 +39,7 @@ RUN python3.12 -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 # Copy project files for installation
-COPY pyproject.toml versioneer.py setup.py setup.cfg MANIFEST.in README.rst ./
+COPY pyproject.toml versioneer.py setup.cfg MANIFEST.in README.rst ./
 COPY tests ./tests
 COPY morphocluster ./morphocluster
 COPY migrations ./migrations
