@@ -34,18 +34,17 @@ COPY docker/morphocluster/supervisord.conf /etc/supervisor/conf.d/supervisord.co
 # Make activate script executable
 RUN chmod +x /code/activate
 
-# Create Python virtual environment
-RUN python3.12 -m venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
-
 # Copy project files for installation
-COPY pyproject.toml versioneer.py setup.cfg MANIFEST.in README.rst ./
+COPY pyproject.toml uv.lock versioneer.py setup.cfg MANIFEST.in README.rst ./
 COPY tests ./tests
 COPY morphocluster ./morphocluster
 COPY migrations ./migrations
 
-# Install the application with dependencies
-RUN uv pip install -e .
+# Install the application with dependencies from lockfile
+RUN uv sync --frozen
+
+# Set PATH to use uv's virtual environment
+ENV PATH="/code/.venv/bin:$PATH"
 
 # Build frontend
 RUN cd morphocluster/frontend && \

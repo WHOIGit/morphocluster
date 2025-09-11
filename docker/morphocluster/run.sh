@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Activate Python virtual environment
-source /opt/venv/bin/activate
+# Activate Python virtual environment (uv creates .venv in project root)
+source /code/.venv/bin/activate
 
 export FLASK_APP=morphocluster
 export MORPHOCLUSTER_SETTINGS=config_docker.py
