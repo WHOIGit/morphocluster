@@ -38,18 +38,14 @@ RUN chmod +x /code/activate
 RUN python3.12 -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Create pyproject.toml for uv
-COPY pyproject.toml requirements.txt ./
-
-# Install Python dependencies
-RUN uv pip install -r requirements.txt
-
-# Install the application
-COPY versioneer.py setup.py setup.cfg MANIFEST.in README.rst ./
+# Copy project files for installation
+COPY pyproject.toml versioneer.py setup.py setup.cfg MANIFEST.in README.rst ./
 COPY tests ./tests
 COPY morphocluster ./morphocluster
 COPY migrations ./migrations
-RUN pip install -e .
+
+# Install the application with dependencies
+RUN uv pip install -e .
 
 # Build frontend
 RUN cd morphocluster/frontend && \
