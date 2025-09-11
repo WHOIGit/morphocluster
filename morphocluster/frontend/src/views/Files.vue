@@ -3,12 +3,10 @@
         <nav class="navbar navbar-expand-lg navbar navbar-dark bg-dark">
             <router-link class="navbar-brand" :to="{ name: 'home' }">MorphoCluster</router-link>
             <div class="navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav nav-item">
+                <ul class="navbar-nav me-auto">
                     <li class="navbar-item">
                         <router-link class="nav-link" :to="{ name: 'files' }">Files</router-link>
                     </li>
-                </ul>
-                <ul class="navbar-nav nav-item">
                     <li v-for="(parent, index) in entry.parents.slice()" :key="index" class="navbar-item">
                         <router-link class="nav-link" :to="{ name: 'files', params: { file_path: parent.path } }">{{
                             parent.name

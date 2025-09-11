@@ -5,7 +5,7 @@
                 >MorphoCluster</router-link
             >
             <div class="collapse navbar-collapse">
-                <ul class="navbar-nav mr-auto">
+                <ul class="navbar-nav me-auto">
                     <li class="nav-item nav-link text-light" v-if="project">
                         {{ project.name }}
                     </li>

@@ -18,4 +18,12 @@ app.use(BootstrapVueNext)
 // Make config available globally
 app.provide('config', window.config)
 
+// Initialize dark mode on app start
+const darkMode = localStorage.getItem("dark-mode") === "true";
+if (darkMode) {
+    document.documentElement.classList.add("dark-mode");
+} else {
+    document.documentElement.classList.remove("dark-mode");
+}
+
 app.mount('#app')

@@ -1,7 +1,7 @@
 {
 	"name": "morphocluster",
 	"containerEnv": {
-		"TZ": "America/New_York",
+		"TZ": "UTC",
 		"LOCAL_WORKSPACE_FOLDER": "${localWorkspaceFolder}",
 		"CONTAINER_WORKSPACE_FOLDER": "${containerWorkspaceFolder}",
 		"FLASK_APP": "morphocluster"

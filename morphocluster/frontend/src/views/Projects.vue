@@ -2,12 +2,12 @@
     <div id="projects">
         <nav class="navbar navbar-expand-lg navbar navbar-dark bg-dark">
             <router-link class="navbar-brand" :to="{ name: 'home' }">MorphoCluster</router-link>
-            <ul class="navbar-nav nav-item">
+            <ul class="navbar-nav me-auto">
                 <li class="nav-item">
                     <router-link class="nav-link" :to="{ name: 'projects' }">Projects</router-link>
                 </li>
             </ul>
-            <dark-mode-control class="ml-auto" />
+            <dark-mode-control />
         </nav>
         <div class="scrollable">
             <div class="container">
