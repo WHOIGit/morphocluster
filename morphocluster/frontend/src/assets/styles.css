@@ -1,0 +1,76 @@
+html, body {
+	height: 100%;
+	margin: 0;
+	overflow: hidden;
+}
+
+.tooltip kbd {
+	background-color: #f7f7f9;
+	color: #212529;
+}
+
+.info-hint {
+	position: absolute;
+	top: 0.5em;
+	right: 1em;
+	/*color: gray;*/
+}
+
+/* Dark/Light Mode */
+:root {
+	--background-color: white;
+	--color: #212529;
+}
+
+:root.dark-mode {
+	--background-color: black;
+	--color: #f7f7f9;
+}
+
+body {
+	color: var(--color);
+	background-color: var(--background-color);
+}
+
+table, .table {
+	color: var(--color);
+}
+
+.modal-dialog {
+	color: black;
+}
+
+/* Navbar styling for both modes */
+.navbar {
+	background-color: var(--navbar-bg, #343a40) !important;
+	color: var(--navbar-color, #ffffff) !important;
+}
+
+.navbar .navbar-brand,
+.navbar .nav-link {
+	color: var(--navbar-color, #ffffff) !important;
+}
+
+.navbar .navbar-brand:hover,
+.navbar .nav-link:hover {
+	color: var(--navbar-hover-color, #f8f9fa) !important;
+}
+
+/* Dark mode navbar */
+:root.dark-mode {
+	--navbar-bg: #1a1a1a;
+	--navbar-color: #f7f7f9;
+	--navbar-hover-color: #ffffff;
+}
+
+/* Light mode navbar */
+:root {
+	--navbar-bg: #343a40;
+	--navbar-color: #ffffff;
+	--navbar-hover-color: #f8f9fa;
+}
+
+/* Ensure text visibility in all contexts */
+.text-light {
+	color: var(--navbar-color, #ffffff) !important;
+}
