@@ -18,7 +18,8 @@ sys.path.insert(0, os.path.abspath(".."))
 # -- Project information -----------------------------------------------------
 
 from morphocluster._version import get_versions
-__version__ = get_versions()['version']
+
+__version__ = get_versions()["version"]
 
 project = "MorphoCluster"
 copyright = "2018-2023, Simon-Martin Schroeder"
