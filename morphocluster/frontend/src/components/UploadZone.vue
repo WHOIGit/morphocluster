@@ -57,11 +57,9 @@
           </div>
         </div>
         <div class="upload-actions mt-3">
-          <b-button variant="success" @click="$emit('upload-complete', uploadedFiles)">
-            Process Files
-          </b-button>
-          <b-button variant="outline-primary" @click="resetUpload" class="ms-2">
-            Upload More
+          <b-button variant="primary" @click="resetUpload">
+            <i class="mdi mdi-plus"></i>
+            Upload More Files
           </b-button>
         </div>
       </div>
