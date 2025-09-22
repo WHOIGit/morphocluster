@@ -12,6 +12,11 @@
       }">
         Files
       </b-button>
+      <b-button size="l" variant="success" class="mr-2" :to="{
+        name: 'upload'
+      }">
+        Upload Data
+      </b-button>
     </div>
   </div>
 </template>

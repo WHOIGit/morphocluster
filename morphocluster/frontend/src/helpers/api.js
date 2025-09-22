@@ -143,3 +143,64 @@ export function log(action, node_id = null, reverse_action = null, data = null) 
     return axios.post(`/api/log`,
         { action, node_id, reverse_action, data });
 }
+
+// Upload and Processing Pipeline
+
+export function uploadArchives(files) {
+    const formData = new FormData();
+    files.forEach(file => {
+        formData.append('files', file);
+    });
+    return axios.post('/api/upload', formData, {
+        headers: {
+            'Content-Type': 'multipart/form-data',
+        },
+    }).then(response => response.data);
+}
+
+export function validateArchive(fileName) {
+    return axios.get(`/api/files/${fileName}/validate`)
+        .then(response => response.data);
+}
+
+export function previewArchive(fileName) {
+    return axios.get(`/api/files/${fileName}/preview`)
+        .then(response => response.data);
+}
+
+export function convertEcoTaxaFormat(fileName, parameters) {
+    return axios.post(`/api/files/${fileName}/convert`, parameters)
+        .then(response => response.data);
+}
+
+export function extractFeatures(fileName, parameters) {
+    return axios.post(`/api/files/${fileName}/extract`, parameters)
+        .then(response => response.data);
+}
+
+export function createProjectFromFeatures(featuresId, parameters) {
+    return axios.post(`/api/features/${featuresId}/cluster`, parameters)
+        .then(response => response.data);
+}
+
+export function reclusterProject(projectId, parameters) {
+    return axios.post(`/api/projects/${projectId}/recluster`, parameters)
+        .then(response => response.data);
+}
+
+// Job Management
+
+export function getUserJobs() {
+    return axios.get('/api/jobs/user')
+        .then(response => response.data);
+}
+
+export function getJobStatus(jobId) {
+    return axios.get(`/api/jobs/${jobId}/status`)
+        .then(response => response.data);
+}
+
+export function cancelJob(jobId) {
+    return axios.delete(`/api/jobs/${jobId}`)
+        .then(response => response.data);
+}

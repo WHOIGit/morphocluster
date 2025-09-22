@@ -326,6 +326,272 @@ def upload_files(path=""):
 
 
 # ===============================================================================
+# /upload - Data Pipeline Upload Interface
+# ===============================================================================
+
+@api.route("/upload", methods=["POST"])
+def upload_archives():
+    """
+    Mock endpoint for uploading data archives.
+    Returns mock response for frontend testing.
+    """
+    uploaded_files = request.files.getlist("files")
+
+    if not uploaded_files:
+        raise werkzeug.exceptions.BadRequest("No files provided")
+
+    # Mock response
+    result = {
+        "message": "Files uploaded successfully",
+        "files": [
+            {
+                "name": file.filename,
+                "size": file.content_length or 1024000,  # Mock size if not available
+                "id": str(uuid.uuid4()),
+                "status": "uploaded"
+            }
+            for file in uploaded_files
+        ]
+    }
+
+    return jsonify(result), 200
+
+
+@api.route("/files/<file_id>/validate", methods=["GET"])
+def validate_archive(file_id):
+    """
+    Mock endpoint for archive validation.
+    Returns mock validation data for frontend testing.
+    """
+    # Mock validation response
+    result = {
+        "is_valid": True,
+        "format": "ecotaxa" if "ecotaxa" in file_id.lower() else "standard",
+        "needs_conversion": "ecotaxa" in file_id.lower(),
+        "file_count": 1250,
+        "image_count": 1200,
+        "detected_encoding": "utf-8",
+        "detected_delimiter": "\t" if "ecotaxa" in file_id.lower() else ",",
+        "validation_warnings": []
+    }
+
+    return jsonify(result), 200
+
+
+@api.route("/files/<file_id>/preview", methods=["GET"])
+def preview_archive(file_id):
+    """
+    Mock endpoint for archive preview.
+    Returns mock preview data for frontend testing.
+    """
+    # Mock preview response
+    result = {
+        "files": [
+            "index.csv",
+            "images/img001.jpg",
+            "images/img002.jpg",
+            "images/img003.jpg",
+            "images/img004.jpg",
+            "images/img005.jpg"
+        ],
+        "total_rows": 1200,
+        "detected_encoding": "utf-8",
+        "detected_delimiter": "," if "standard" in file_id.lower() else "\t",
+        "columns": [
+            {"key": "object_id", "label": "Object ID"},
+            {"key": "img_file_name", "label": "Image File"},
+            {"key": "object_lat", "label": "Latitude"},
+            {"key": "object_lon", "label": "Longitude"},
+            {"key": "object_depth", "label": "Depth"}
+        ],
+        "sample_rows": [
+            {
+                "object_id": "obj_001",
+                "img_file_name": "images/img001.jpg",
+                "object_lat": "45.123",
+                "object_lon": "-125.456",
+                "object_depth": "10.5"
+            },
+            {
+                "object_id": "obj_002",
+                "img_file_name": "images/img002.jpg",
+                "object_lat": "45.124",
+                "object_lon": "-125.457",
+                "object_depth": "12.1"
+            },
+            {
+                "object_id": "obj_003",
+                "img_file_name": "images/img003.jpg",
+                "object_lat": "45.125",
+                "object_lon": "-125.458",
+                "object_depth": "8.9"
+            }
+        ]
+    }
+
+    return jsonify(result), 200
+
+
+@api.route("/files/<file_id>/convert", methods=["POST"])
+def convert_ecotaxa_format(file_id):
+    """
+    Mock endpoint for EcoTaxa format conversion.
+    Creates a mock background job for frontend testing.
+    """
+    data = request.get_json() or {}
+
+    # Mock job creation
+    job_id = str(uuid.uuid4())
+
+    result = {
+        "job_id": job_id,
+        "status": "started",
+        "message": "EcoTaxa conversion job started",
+        "parameters": data
+    }
+
+    return jsonify(result), 202
+
+
+@api.route("/files/<file_id>/extract", methods=["POST"])
+def extract_features(file_id):
+    """
+    Mock endpoint for feature extraction.
+    Creates a mock background job for frontend testing.
+    """
+    data = request.get_json() or {}
+
+    # Mock job creation
+    job_id = str(uuid.uuid4())
+
+    result = {
+        "job_id": job_id,
+        "status": "started",
+        "message": "Feature extraction job started",
+        "parameters": data
+    }
+
+    return jsonify(result), 202
+
+
+@api.route("/jobs/user", methods=["GET"])
+def get_user_jobs():
+    """
+    Mock endpoint for getting user jobs.
+    Returns mock job data for frontend testing.
+    """
+    # Mock jobs with different statuses
+    jobs = [
+        {
+            "id": "job_001",
+            "job_type": "format_conversion",
+            "status": "completed",
+            "progress": 100,
+            "created_at": "2024-01-15T10:30:00Z",
+            "completed_at": "2024-01-15T10:32:15Z",
+            "parameters": {
+                "archive_name": "sample_ecotaxa.zip",
+                "encoding": "utf-8",
+                "delimiter": "\t"
+            },
+            "result_url": "/files/converted_sample"
+        },
+        {
+            "id": "job_002",
+            "job_type": "feature_extraction",
+            "status": "running",
+            "progress": 45,
+            "created_at": "2024-01-15T11:00:00Z",
+            "current_step": "Processing batch 450/1000",
+            "eta": 300,
+            "parameters": {
+                "archive_name": "marine_plankton.zip",
+                "model": "resnet50",
+                "batch_size": 512
+            },
+            "logs": [
+                {
+                    "timestamp": "2024-01-15T11:00:00Z",
+                    "level": "info",
+                    "message": "Starting feature extraction..."
+                },
+                {
+                    "timestamp": "2024-01-15T11:05:30Z",
+                    "level": "info",
+                    "message": "Processed 200 images"
+                },
+                {
+                    "timestamp": "2024-01-15T11:10:15Z",
+                    "level": "info",
+                    "message": "Processed 450 images"
+                }
+            ]
+        },
+        {
+            "id": "job_003",
+            "job_type": "initial_clustering",
+            "status": "failed",
+            "progress": 25,
+            "created_at": "2024-01-15T09:15:00Z",
+            "failed_at": "2024-01-15T09:45:30Z",
+            "error_message": "Insufficient memory for clustering. Try reducing batch size.",
+            "parameters": {
+                "min_cluster_size": 128,
+                "method": "EOM"
+            }
+        }
+    ]
+
+    return jsonify(jobs), 200
+
+
+@api.route("/jobs/<job_id>/status", methods=["GET"])
+def get_job_status(job_id):
+    """
+    Mock endpoint for getting individual job status.
+    Returns mock job status for frontend testing.
+    """
+    # Mock job status based on job_id
+    if job_id == "job_001":
+        job = {
+            "id": job_id,
+            "status": "completed",
+            "progress": 100,
+            "result_url": "/files/converted_sample"
+        }
+    elif job_id == "job_002":
+        job = {
+            "id": job_id,
+            "status": "running",
+            "progress": 65,
+            "current_step": "Processing batch 650/1000",
+            "eta": 180
+        }
+    else:
+        job = {
+            "id": job_id,
+            "status": "pending",
+            "progress": 0
+        }
+
+    return jsonify(job), 200
+
+
+@api.route("/jobs/<job_id>", methods=["DELETE"])
+def cancel_job(job_id):
+    """
+    Mock endpoint for cancelling a job.
+    Returns mock cancellation response for frontend testing.
+    """
+    result = {
+        "message": f"Job {job_id} cancellation requested",
+        "status": "cancelling"
+    }
+
+    return jsonify(result), 200
+
+
+# ===============================================================================
 # /projects
 # ===============================================================================
 @api.route("/projects", methods=["GET"])
