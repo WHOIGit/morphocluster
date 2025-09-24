@@ -39,6 +39,7 @@ COPY pyproject.toml uv.lock versioneer.py setup.cfg MANIFEST.in README.rst ./
 COPY tests ./tests
 COPY morphocluster ./morphocluster
 COPY migrations ./migrations
+COPY data ./data
 
 # Install the application with dependencies from lockfile
 RUN uv sync --frozen

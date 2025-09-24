@@ -1,0 +1,360 @@
+<template>
+  <b-modal
+    v-model="isVisible"
+    title="Create Project (Initial Clustering)"
+    size="lg"
+    @ok="handleCluster"
+    @cancel="handleCancel"
+    :ok-disabled="!isValid"
+    ok-title="Create Project"
+    cancel-title="Cancel"
+  >
+    <div class="cluster-form">
+      <b-alert variant="info" show class="mb-4">
+        <i class="mdi mdi-sitemap"></i>
+        <strong>Initial Clustering</strong><br>
+        Create a new MorphoCluster project by clustering the extracted features.
+        This will group similar images together based on their visual features.
+      </b-alert>
+
+      <!-- Archive Information -->
+      <div class="archive-info mb-4">
+        <h6>Source Information</h6>
+        <div class="info-grid">
+          <div class="info-item">
+            <strong>Archive:</strong>
+            <span>{{ archive?.name || 'Unknown' }}</span>
+          </div>
+          <div class="info-item" v-if="archive?.validation?.image_count">
+            <strong>Images:</strong>
+            <span>{{ archive.validation.image_count }} images</span>
+          </div>
+          <div class="info-item">
+            <strong>Features:</strong>
+            <span>{{ featureFile || 'Feature extraction completed' }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Project Settings -->
+      <b-form @submit.prevent="handleCluster">
+        <b-form-group
+          label="Project Name"
+          label-for="project-name"
+          description="Choose a descriptive name for your new project"
+          :invalid-feedback="projectNameError"
+          :state="projectNameState"
+        >
+          <b-form-input
+            id="project-name"
+            v-model="parameters.project_name"
+            :state="projectNameState"
+            placeholder="e.g., Plankton Dataset 2023"
+            required
+          />
+        </b-form-group>
+
+        <b-form-group
+          label="Project Description"
+          label-for="project-description"
+          description="Optional description of your dataset"
+        >
+          <b-form-textarea
+            id="project-description"
+            v-model="parameters.description"
+            placeholder="Description of the dataset, sampling location, date, etc."
+            rows="3"
+          />
+        </b-form-group>
+
+        <!-- Clustering Parameters -->
+        <b-card class="clustering-params mb-4" no-body>
+          <b-card-header>
+            <h6 class="mb-0">Clustering Parameters</h6>
+          </b-card-header>
+          <b-card-body>
+            <b-form-group
+              label="Minimum Cluster Size"
+              label-for="min-cluster-size"
+              :description="minClusterSizeDescription"
+            >
+              <b-form-input
+                id="min-cluster-size"
+                v-model.number="parameters.min_cluster_size"
+                type="number"
+                min="1"
+                max="10000"
+                step="1"
+              />
+              <div class="cluster-size-presets mt-2">
+                <small class="text-muted">Presets: </small>
+                <b-button
+                  v-for="preset in clusterSizePresets"
+                  :key="preset.value"
+                  size="sm"
+                  variant="outline-secondary"
+                  class="me-1"
+                  @click="parameters.min_cluster_size = preset.value"
+                >
+                  {{ preset.label }}
+                </b-button>
+              </div>
+            </b-form-group>
+
+            <b-form-group
+              label="Minimum Samples"
+              label-for="min-samples"
+              description="Minimum number of samples for a point to be considered a core point"
+            >
+              <b-form-input
+                id="min-samples"
+                v-model.number="parameters.min_samples"
+                type="number"
+                min="1"
+                max="100"
+                step="1"
+              />
+            </b-form-group>
+
+            <b-form-group
+              label="Cluster Selection Method"
+              label-for="cluster-method"
+              description="Method for selecting final clusters from the hierarchy"
+            >
+              <b-form-select
+                id="cluster-method"
+                v-model="parameters.cluster_selection_method"
+                :options="clusterMethodOptions"
+              />
+            </b-form-group>
+          </b-card-body>
+        </b-card>
+
+        <!-- Advanced Options -->
+        <b-card class="advanced-options mb-4" no-body>
+          <b-card-header class="d-flex justify-content-between align-items-center">
+            <h6 class="mb-0">Advanced Options</h6>
+            <b-button
+              variant="link"
+              size="sm"
+              @click="showAdvanced = !showAdvanced"
+              class="p-0"
+            >
+              {{ showAdvanced ? 'Hide' : 'Show' }} Advanced
+              <i :class="showAdvanced ? 'mdi mdi-chevron-up' : 'mdi mdi-chevron-down'"></i>
+            </b-button>
+          </b-card-header>
+          <b-collapse v-model="showAdvanced">
+            <b-card-body>
+              <b-form-group
+                label="Sample Size"
+                label-for="sample-size"
+                description="Maximum number of objects to use for clustering (0 = use all)"
+              >
+                <b-form-input
+                  id="sample-size"
+                  v-model.number="parameters.sample_size"
+                  type="number"
+                  min="0"
+                  max="1000000"
+                  step="1000"
+                />
+              </b-form-group>
+
+              <b-form-group
+                label="Keep Unexplored Ratio"
+                label-for="keep-unexplored"
+                description="Ratio of objects to keep unexplored for future analysis"
+              >
+                <b-form-input
+                  id="keep-unexplored"
+                  v-model.number="parameters.keep_unexplored_ratio"
+                  type="number"
+                  min="0"
+                  max="1"
+                  step="0.1"
+                />
+              </b-form-group>
+            </b-card-body>
+          </b-collapse>
+        </b-card>
+
+        <!-- Estimation Info -->
+        <div v-if="estimatedTime || estimatedClusters" class="estimation-info">
+          <b-alert variant="light" show>
+            <div class="d-flex justify-content-between">
+              <div v-if="estimatedTime">
+                <strong>Estimated Time:</strong> {{ estimatedTime }}
+              </div>
+              <div v-if="estimatedClusters">
+                <strong>Expected Clusters:</strong> ~{{ estimatedClusters }}
+              </div>
+            </div>
+          </b-alert>
+        </div>
+      </b-form>
+    </div>
+  </b-modal>
+</template>
+
+<script>
+export default {
+  name: 'ClusterModal',
+  props: {
+    archive: {
+      type: Object,
+      required: true
+    },
+    featureFile: {
+      type: String,
+      default: null
+    }
+  },
+  emits: ['cluster', 'cancel'],
+  data() {
+    return {
+      isVisible: true,
+      showAdvanced: false,
+      parameters: {
+        project_name: '',
+        description: '',
+        min_cluster_size: 128,
+        min_samples: 1,
+        cluster_selection_method: 'leaf',
+        sample_size: 0, // 0 means use all
+        keep_unexplored_ratio: 0.0
+      },
+      clusterSizePresets: [
+        { value: 32, label: 'Small (32)' },
+        { value: 64, label: 'Medium (64)' },
+        { value: 128, label: 'Large (128)' },
+        { value: 256, label: 'X-Large (256)' }
+      ],
+      clusterMethodOptions: [
+        { value: 'eom', text: 'EOM (Excess of Mass)' },
+        { value: 'leaf', text: 'Leaf (Most Granular)' }
+      ]
+    };
+  },
+  computed: {
+    projectNameState() {
+      if (this.parameters.project_name.length === 0) return null;
+      return this.parameters.project_name.length >= 3 ? true : false;
+    },
+    projectNameError() {
+      if (this.parameters.project_name.length > 0 && this.parameters.project_name.length < 3) {
+        return 'Project name must be at least 3 characters long';
+      }
+      return '';
+    },
+    isValid() {
+      return this.parameters.project_name.length >= 3;
+    },
+    minClusterSizeDescription() {
+      const size = this.parameters.min_cluster_size;
+      if (size < 32) return 'Very small clusters - may produce many tiny groups';
+      if (size < 64) return 'Small clusters - good for detailed analysis';
+      if (size < 128) return 'Medium clusters - balanced approach';
+      if (size < 256) return 'Large clusters - broader groupings';
+      return 'Very large clusters - coarse groupings';
+    },
+    estimatedTime() {
+      const imageCount = this.archive?.validation?.image_count || 0;
+      if (imageCount > 10000) return '10-30 minutes';
+      if (imageCount > 5000) return '5-15 minutes';
+      if (imageCount > 1000) return '2-5 minutes';
+      return '1-2 minutes';
+    },
+    estimatedClusters() {
+      const imageCount = this.archive?.validation?.image_count || 0;
+      const clusterSize = this.parameters.min_cluster_size;
+      if (imageCount && clusterSize) {
+        return Math.floor(imageCount / clusterSize / 2); // Rough estimate
+      }
+      return null;
+    }
+  },
+  mounted() {
+    // Set default project name based on archive name
+    if (this.archive?.name) {
+      const baseName = this.archive.name.replace(/\.(zip|tar|tar\.gz)$/i, '');
+      this.parameters.project_name = baseName.replace(/_/g, ' ');
+    }
+  },
+  methods: {
+    handleCluster() {
+      if (this.isValid) {
+        this.$emit('cluster', this.parameters);
+      }
+    },
+    handleCancel() {
+      this.isVisible = false;
+      this.$emit('cancel');
+    }
+  }
+};
+</script>
+
+<style scoped>
+.cluster-form {
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.archive-info {
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  padding: 1rem;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.5rem;
+}
+
+.info-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.25rem 0;
+}
+
+.info-item strong {
+  margin-right: 0.5rem;
+}
+
+.clustering-params .card-header,
+.advanced-options .card-header {
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.cluster-size-presets {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+}
+
+.estimation-info {
+  margin-top: 1rem;
+}
+
+@media (max-width: 768px) {
+  .info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .info-item {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .cluster-size-presets {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+</style>

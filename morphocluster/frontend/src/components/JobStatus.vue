@@ -10,10 +10,11 @@
         v-for="job in jobs"
         :key="job.id"
         class="job-item"
-        :class="{ 
+        :class="{
           'job-completed': job.status === 'completed',
           'job-failed': job.status === 'failed',
-          'job-running': job.status === 'running'
+          'job-running': job.status === 'running',
+          'job-queued': job.status === 'queued'
         }"
       >
         <div class="job-header">
@@ -38,7 +39,7 @@
               variant="outline-secondary"
               @click="removeJob(job.id)"
             >
-              <i class="mdi mdi-close"></i>
+              ×
             </b-button>
           </div>
         </div>
@@ -141,7 +142,8 @@ export default {
       jobs: [],
       showLogs: false,
       refreshTimer: null,
-      isLoading: false
+      isLoading: false,
+      removedJobIds: new Set()
     };
   },
   computed: {
@@ -150,6 +152,7 @@ export default {
     }
   },
   async mounted() {
+    this.loadRemovedJobIds();
     await this.fetchJobs();
     if (this.autoRefresh) {
       this.startRefresh();
@@ -159,14 +162,36 @@ export default {
     this.stopRefresh();
   },
   methods: {
+    loadRemovedJobIds() {
+      try {
+        const stored = localStorage.getItem('removedJobIds');
+        if (stored) {
+          this.removedJobIds = new Set(JSON.parse(stored));
+        }
+      } catch (error) {
+        console.error('Failed to load removed job IDs:', error);
+        this.removedJobIds = new Set();
+      }
+    },
+
+    saveRemovedJobIds() {
+      try {
+        localStorage.setItem('removedJobIds', JSON.stringify([...this.removedJobIds]));
+      } catch (error) {
+        console.error('Failed to save removed job IDs:', error);
+      }
+    },
     async fetchJobs() {
       if (this.isLoading) return;
       
       this.isLoading = true;
       try {
         const response = await this.$axios.get('/api/jobs/user');
-        const newJobs = response.data;
-        
+        const allJobs = response.data;
+
+        // Filter out manually removed jobs
+        const newJobs = allJobs.filter(job => !this.removedJobIds.has(job.id));
+
         // Check for status changes
         this.jobs.forEach(oldJob => {
           const newJob = newJobs.find(j => j.id === oldJob.id);
@@ -178,7 +203,17 @@ export default {
             }
           }
         });
-        
+
+        // Also check for newly completed jobs that weren't in the old list
+        newJobs.forEach(newJob => {
+          const oldJob = this.jobs.find(j => j.id === newJob.id);
+          if (!oldJob && newJob.status === 'completed') {
+            this.$emit('job-completed', newJob);
+          } else if (!oldJob && newJob.status === 'failed') {
+            this.$emit('job-failed', newJob);
+          }
+        });
+
         this.jobs = newJobs;
       } catch (error) {
         console.error('Failed to fetch jobs:', error);
@@ -202,6 +237,11 @@ export default {
     },
 
     removeJob(jobId) {
+      // Add to removed set so it doesn't reappear
+      this.removedJobIds.add(jobId);
+      this.saveRemovedJobIds();
+
+      // Remove from current jobs array
       const index = this.jobs.findIndex(j => j.id === jobId);
       if (index !== -1) {
         this.jobs.splice(index, 1);
@@ -209,6 +249,15 @@ export default {
     },
 
     clearCompletedJobs() {
+      // Add completed/failed jobs to removed set
+      this.jobs.forEach(job => {
+        if (['completed', 'failed'].includes(job.status)) {
+          this.removedJobIds.add(job.id);
+        }
+      });
+      this.saveRemovedJobIds();
+
+      // Filter out completed/failed jobs
       this.jobs = this.jobs.filter(job => !['completed', 'failed'].includes(job.status));
     },
 
@@ -250,7 +299,7 @@ export default {
 
     getJobDetails(job) {
       if (job.job_type === 'format_conversion') {
-        return `Archive: ${job.parameters?.archive_name || 'Unknown'}`;
+        return `Archive: ${job.archive_name || job.parameters?.archive_name || 'Unknown'}`;
       } else if (job.job_type === 'feature_extraction') {
         return `Model: ${job.parameters?.model || 'ImageNet'}, Batch: ${job.parameters?.batch_size || 512}`;
       } else if (job.job_type === 'initial_clustering' || job.job_type === 'reclustering') {
@@ -262,6 +311,7 @@ export default {
     getStatusIcon(status) {
       const icons = {
         'pending': 'mdi mdi-clock-outline text-warning',
+        'queued': 'mdi mdi-clock-outline text-info',
         'running': 'mdi mdi-loading mdi-spin text-primary',
         'completed': 'mdi mdi-check-circle text-success',
         'failed': 'mdi mdi-alert-circle text-danger',
@@ -273,6 +323,7 @@ export default {
     getStatusText(status) {
       const texts = {
         'pending': 'Pending',
+        'queued': 'Queued',
         'running': 'Running',
         'completed': 'Completed',
         'failed': 'Failed',
@@ -308,6 +359,8 @@ export default {
   border: 1px solid #dee2e6;
   border-radius: 8px;
   background: white;
+  max-height: 600px;
+  overflow-y: auto;
 }
 
 .no-jobs {
@@ -343,6 +396,11 @@ export default {
 .job-item.job-running {
   border-left: 4px solid #007bff;
   background-color: #f8f9ff;
+}
+
+.job-item.job-queued {
+  border-left: 4px solid #17a2b8;
+  background-color: #f0f9ff;
 }
 
 .job-header {

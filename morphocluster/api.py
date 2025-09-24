@@ -332,27 +332,42 @@ def upload_files(path=""):
 @api.route("/upload", methods=["POST"])
 def upload_archives():
     """
-    Mock endpoint for uploading data archives.
-    Returns mock response for frontend testing.
+    Upload data archives for processing pipeline.
+    Saves files to FILES_DIR and returns file information.
     """
     uploaded_files = request.files.getlist("files")
 
     if not uploaded_files:
         raise werkzeug.exceptions.BadRequest("No files provided")
 
-    # Mock response
     result = {
         "message": "Files uploaded successfully",
-        "files": [
-            {
-                "name": file.filename,
-                "size": file.content_length or 1024000,  # Mock size if not available
-                "id": str(uuid.uuid4()),
-                "status": "uploaded"
-            }
-            for file in uploaded_files
-        ]
+        "files": []
     }
+
+    for upload_file in uploaded_files:
+        if upload_file.filename:
+            # Use the same security function as the existing upload
+            filename = secure_path_and_name(upload_file.filename)
+
+            # Save to FILES_DIR (same location validation expects)
+            server_path = os.path.join(app.config["FILES_DIR"], filename)
+
+            # Ensure directory exists
+            os.makedirs(os.path.dirname(server_path), exist_ok=True)
+
+            # Save the file
+            upload_file.save(server_path)
+
+            # Get actual file size
+            file_size = os.path.getsize(server_path)
+
+            result["files"].append({
+                "name": filename,
+                "size": file_size,
+                "id": filename,  # Use filename as ID for validation
+                "status": "uploaded"
+            })
 
     return jsonify(result), 200
 
@@ -360,189 +375,498 @@ def upload_archives():
 @api.route("/files/<file_id>/validate", methods=["GET"])
 def validate_archive(file_id):
     """
-    Mock endpoint for archive validation.
-    Returns mock validation data for frontend testing.
+    Validate an uploaded archive file.
+    Checks ZIP structure, required files, and detects format.
     """
-    # Mock validation response
-    result = {
-        "is_valid": True,
-        "format": "ecotaxa" if "ecotaxa" in file_id.lower() else "standard",
-        "needs_conversion": "ecotaxa" in file_id.lower(),
-        "file_count": 1250,
-        "image_count": 1200,
-        "detected_encoding": "utf-8",
-        "detected_delimiter": "\t" if "ecotaxa" in file_id.lower() else ",",
-        "validation_warnings": []
-    }
+    import zipfile
+    import csv
+    import chardet
+    from pathlib import Path
 
-    return jsonify(result), 200
+    try:
+        # Decode URL-encoded filename
+        from urllib.parse import unquote
+        filename = unquote(file_id)
+
+        # Find the uploaded file
+        upload_path = Path(app.config["FILES_DIR"]) / filename
+
+        if not upload_path.exists():
+            return jsonify({
+                "is_valid": False,
+                "error": f"File {filename} not found",
+                "validation_warnings": []
+            }), 404
+
+        result = {
+            "is_valid": False,
+            "format": "unknown",
+            "needs_conversion": False,
+            "file_count": 0,
+            "image_count": 0,
+            "detected_encoding": None,
+            "detected_delimiter": None,
+            "validation_warnings": []
+        }
+
+        # Check if it's a ZIP file
+        if not zipfile.is_zipfile(upload_path):
+            result["error"] = "File is not a valid ZIP archive"
+            return jsonify(result), 200
+
+        # Examine ZIP contents
+        with zipfile.ZipFile(upload_path, 'r') as zip_file:
+            file_list = zip_file.namelist()
+            result["file_count"] = len(file_list)
+
+            # Count image files
+            image_extensions = ('.jpg', '.jpeg', '.png', '.tiff', '.tif')
+            image_files = [f for f in file_list if f.lower().endswith(image_extensions)]
+            result["image_count"] = len(image_files)
+
+            # Look for metadata files
+            csv_files = [f for f in file_list if f.endswith('.csv')]
+            tsv_files = [f for f in file_list if f.endswith('.tsv')]
+
+            # Detect format based on files present
+            if 'index.csv' in file_list:
+                result["format"] = "standard"
+                result["needs_conversion"] = False
+                metadata_file = 'index.csv'
+            elif tsv_files or any('ecotaxa' in f.lower() for f in csv_files):
+                result["format"] = "ecotaxa"
+                result["needs_conversion"] = True
+                metadata_file = tsv_files[0] if tsv_files else csv_files[0]
+            elif csv_files:
+                result["format"] = "csv"
+                result["needs_conversion"] = True
+                metadata_file = csv_files[0]
+            else:
+                result["validation_warnings"].append("No metadata file (CSV/TSV) found")
+                metadata_file = None
+
+            # Analyze metadata file if found
+            if metadata_file:
+                try:
+                    with zip_file.open(metadata_file) as csv_data:
+                        # Detect encoding
+                        raw_data = csv_data.read(10000)  # Read first 10KB
+                        encoding_result = chardet.detect(raw_data)
+                        result["detected_encoding"] = encoding_result.get('encoding', 'utf-8')
+
+                        # Detect delimiter
+                        sample_text = raw_data.decode(result["detected_encoding"], errors='ignore')
+                        sample_lines = sample_text.split('\n')[:5]
+
+                        if sample_lines:
+                            # Count delimiters in first few lines
+                            delimiters = [',', '\t', ';', '|']
+                            delimiter_counts = {}
+
+                            for line in sample_lines:
+                                for delim in delimiters:
+                                    delimiter_counts[delim] = delimiter_counts.get(delim, 0) + line.count(delim)
+
+                            # Choose most common delimiter
+                            if delimiter_counts:
+                                result["detected_delimiter"] = max(delimiter_counts, key=delimiter_counts.get)
+
+                except Exception as e:
+                    result["validation_warnings"].append(f"Could not analyze metadata file: {str(e)}")
+
+            # Validation checks
+            if result["image_count"] == 0:
+                result["validation_warnings"].append("No image files found")
+
+            if metadata_file is None:
+                result["validation_warnings"].append("No metadata file found")
+
+            # Archive is valid if it has images and metadata
+            result["is_valid"] = (result["image_count"] > 0 and metadata_file is not None)
+
+        return jsonify(result), 200
+
+    except Exception as e:
+        return jsonify({
+            "is_valid": False,
+            "error": f"Validation failed: {str(e)}",
+            "validation_warnings": []
+        }), 500
 
 
 @api.route("/files/<file_id>/preview", methods=["GET"])
 def preview_archive(file_id):
     """
-    Mock endpoint for archive preview.
-    Returns mock preview data for frontend testing.
+    Preview archive contents and extract sample data from CSV/TSV files.
     """
-    # Mock preview response
-    result = {
-        "files": [
-            "index.csv",
-            "images/img001.jpg",
-            "images/img002.jpg",
-            "images/img003.jpg",
-            "images/img004.jpg",
-            "images/img005.jpg"
-        ],
-        "total_rows": 1200,
-        "detected_encoding": "utf-8",
-        "detected_delimiter": "," if "standard" in file_id.lower() else "\t",
-        "columns": [
-            {"key": "object_id", "label": "Object ID"},
-            {"key": "img_file_name", "label": "Image File"},
-            {"key": "object_lat", "label": "Latitude"},
-            {"key": "object_lon", "label": "Longitude"},
-            {"key": "object_depth", "label": "Depth"}
-        ],
-        "sample_rows": [
-            {
-                "object_id": "obj_001",
-                "img_file_name": "images/img001.jpg",
-                "object_lat": "45.123",
-                "object_lon": "-125.456",
-                "object_depth": "10.5"
-            },
-            {
-                "object_id": "obj_002",
-                "img_file_name": "images/img002.jpg",
-                "object_lat": "45.124",
-                "object_lon": "-125.457",
-                "object_depth": "12.1"
-            },
-            {
-                "object_id": "obj_003",
-                "img_file_name": "images/img003.jpg",
-                "object_lat": "45.125",
-                "object_lon": "-125.458",
-                "object_depth": "8.9"
-            }
-        ]
-    }
+    import zipfile
+    import csv
+    import chardet
+    from pathlib import Path
+    from urllib.parse import unquote
 
-    return jsonify(result), 200
+    try:
+        filename = unquote(file_id)
+        upload_path = Path(app.config["FILES_DIR"]) / filename
+
+        if not upload_path.exists():
+            return jsonify({"error": f"File {filename} not found"}), 404
+
+        if not zipfile.is_zipfile(upload_path):
+            return jsonify({"error": "File is not a valid ZIP archive"}), 400
+
+        result = {
+            "files": [],
+            "total_rows": 0,
+            "detected_encoding": None,
+            "detected_delimiter": None,
+            "columns": [],
+            "sample_rows": []
+        }
+
+        with zipfile.ZipFile(upload_path, 'r') as zip_file:
+            # Get all files in archive
+            file_list = zip_file.namelist()
+            result["files"] = sorted(file_list)
+
+            # Find metadata file (CSV/TSV)
+            csv_files = [f for f in file_list if f.endswith('.csv')]
+            tsv_files = [f for f in file_list if f.endswith('.tsv')]
+
+            metadata_file = None
+            if 'index.csv' in file_list:
+                metadata_file = 'index.csv'
+            elif tsv_files:
+                metadata_file = tsv_files[0]
+            elif csv_files:
+                metadata_file = csv_files[0]
+
+            if metadata_file:
+                try:
+                    with zip_file.open(metadata_file) as csv_data:
+                        # Detect encoding
+                        raw_data = csv_data.read(50000)  # Read first 50KB for better detection
+                        encoding_result = chardet.detect(raw_data)
+                        detected_encoding = encoding_result.get('encoding', 'utf-8')
+
+                        # Handle common encoding issues
+                        if detected_encoding.lower() in ['ascii', 'windows-1252', 'iso-8859-1']:
+                            detected_encoding = 'utf-8'
+
+                        result["detected_encoding"] = detected_encoding
+
+                        # Decode text and detect delimiter
+                        try:
+                            text = raw_data.decode(detected_encoding, errors='replace')
+                        except UnicodeDecodeError:
+                            text = raw_data.decode('utf-8', errors='replace')
+
+                        # Detect delimiter by analyzing first few lines
+                        lines = text.split('\n')[:10]
+                        non_empty_lines = [line.strip() for line in lines if line.strip()]
+
+                        if non_empty_lines:
+                            # Count delimiters in header and first few data rows
+                            delimiters = [',', '\t', ';', '|']
+                            delimiter_scores = {}
+
+                            for delim in delimiters:
+                                scores = []
+                                for line in non_empty_lines[:5]:  # Check first 5 lines
+                                    count = line.count(delim)
+                                    scores.append(count)
+
+                                # Prefer delimiters that appear consistently
+                                if scores and max(scores) > 0:
+                                    consistency = len(set(scores)) == 1  # All lines have same count
+                                    delimiter_scores[delim] = (max(scores), consistency)
+
+                            if delimiter_scores:
+                                # Choose delimiter with highest count and consistency
+                                best_delim = max(delimiter_scores,
+                                               key=lambda x: (delimiter_scores[x][1], delimiter_scores[x][0]))
+                                result["detected_delimiter"] = best_delim
+
+                        # Parse CSV and extract sample data
+                        if result["detected_delimiter"]:
+                            # Re-read file from beginning for CSV parsing
+                            zip_file.seek(0)  # Reset zip file position
+                            with zip_file.open(metadata_file) as csv_data:
+                                text_data = csv_data.read().decode(detected_encoding, errors='replace')
+                                lines = text_data.split('\n')
+
+                                # Parse with detected delimiter
+                                csv_reader = csv.DictReader(
+                                    lines,
+                                    delimiter=result["detected_delimiter"]
+                                )
+
+                                # Get column names
+                                if csv_reader.fieldnames:
+                                    result["columns"] = [
+                                        {"key": col.strip(), "label": col.strip()}
+                                        for col in csv_reader.fieldnames if col
+                                    ]
+
+                                # Get sample rows (first 5)
+                                sample_rows = []
+                                row_count = 0
+
+                                for row in csv_reader:
+                                    row_count += 1
+                                    if len(sample_rows) < 5:
+                                        # Clean up row data
+                                        clean_row = {}
+                                        for key, value in row.items():
+                                            if key:  # Skip empty keys
+                                                clean_row[key.strip()] = str(value).strip() if value else ""
+                                        if clean_row:  # Only add non-empty rows
+                                            sample_rows.append(clean_row)
+
+                                result["sample_rows"] = sample_rows
+                                result["total_rows"] = row_count
+
+                except Exception as e:
+                    result["error"] = f"Could not parse metadata file: {str(e)}"
+
+        return jsonify(result), 200
+
+    except Exception as e:
+        return jsonify({
+            "error": f"Preview failed: {str(e)}"
+        }), 500
 
 
 @api.route("/files/<file_id>/convert", methods=["POST"])
 def convert_ecotaxa_format(file_id):
     """
-    Mock endpoint for EcoTaxa format conversion.
-    Creates a mock background job for frontend testing.
+    Start EcoTaxa format conversion background job for uploaded archive.
     """
-    data = request.get_json() or {}
+    from urllib.parse import unquote
+    from morphocluster.background import convert_ecotaxa_job
 
-    # Mock job creation
-    job_id = str(uuid.uuid4())
+    filename = unquote(file_id)
+    parameters = request.get_json() or {}
 
-    result = {
-        "job_id": job_id,
-        "status": "started",
-        "message": "EcoTaxa conversion job started",
-        "parameters": data
-    }
+    try:
+        # Queue the background job
+        job = convert_ecotaxa_job.queue(filename, parameters)
 
-    return jsonify(result), 202
+        # Initialize job metadata
+        job.meta['status'] = 'queued'
+        job.meta['progress'] = 0
+        job.meta['current_step'] = 'Waiting in queue...'
+        job.meta['created_at'] = datetime.now().isoformat()
+        job.meta['job_type'] = 'format_conversion'
+        job.meta['archive_name'] = filename
+        job.meta['parameters'] = parameters
+        job.save_meta()
+
+        result = {
+            "job_id": job.id,
+            "status": "queued",
+            "message": "EcoTaxa conversion job queued",
+            "parameters": parameters
+        }
+
+        return jsonify(result), 202
+
+    except Exception as e:
+        return jsonify({
+            "error": f"Failed to queue EcoTaxa conversion job: {str(e)}"
+        }), 500
 
 
 @api.route("/files/<file_id>/extract", methods=["POST"])
 def extract_features(file_id):
     """
-    Mock endpoint for feature extraction.
-    Creates a mock background job for frontend testing.
+    Start feature extraction background job for uploaded archive.
     """
-    data = request.get_json() or {}
+    from urllib.parse import unquote
+    from morphocluster.background import extract_features_job
 
-    # Mock job creation
-    job_id = str(uuid.uuid4())
+    filename = unquote(file_id)
+    parameters = request.get_json() or {}
 
-    result = {
-        "job_id": job_id,
-        "status": "started",
-        "message": "Feature extraction job started",
-        "parameters": data
-    }
+    try:
+        # Queue the background job
+        job = extract_features_job.queue(filename, parameters)
 
-    return jsonify(result), 202
+        # Initialize job metadata
+        job.meta['status'] = 'queued'
+        job.meta['progress'] = 0
+        job.meta['current_step'] = 'Waiting in queue...'
+        job.meta['created_at'] = datetime.now().isoformat()
+        job.meta['job_type'] = 'feature_extraction'
+        job.meta['archive_name'] = filename
+        job.meta['parameters'] = parameters
+        job.save_meta()
+
+        result = {
+            "job_id": job.id,
+            "status": "queued",
+            "message": "Feature extraction job queued",
+            "parameters": parameters
+        }
+
+        return jsonify(result), 202
+
+    except Exception as e:
+        return jsonify({
+            "error": f"Failed to queue feature extraction job: {str(e)}"
+        }), 500
+
+
+@api.route("/files/<file_id>/cluster", methods=["POST"])
+def create_clustering_project(file_id):
+    """
+    Start initial clustering background job to create a new MorphoCluster project.
+    """
+    from urllib.parse import unquote
+    from morphocluster.background import initial_clustering_job
+
+    filename = unquote(file_id)
+    parameters = request.get_json() or {}
+
+    # Extract feature file from parameters or construct default name
+    feature_file = parameters.get('feature_file')
+    if not feature_file:
+        # Construct feature file name based on archive name
+        archive_stem = pathlib.Path(filename).stem
+        feature_file = f"{archive_stem}_features.h5"
+
+    try:
+        # Queue the background job
+        job = initial_clustering_job.queue(filename, feature_file, parameters)
+
+        # Initialize job metadata
+        job.meta['status'] = 'queued'
+        job.meta['progress'] = 0
+        job.meta['current_step'] = 'Waiting in queue...'
+        job.meta['created_at'] = datetime.now().isoformat()
+        job.meta['job_type'] = 'initial_clustering'
+        job.meta['archive_name'] = filename
+        job.meta['feature_file'] = feature_file
+        job.meta['parameters'] = parameters
+        job.save_meta()
+
+        result = {
+            "job_id": job.id,
+            "status": "queued",
+            "message": "Initial clustering job queued",
+            "parameters": parameters,
+            "feature_file": feature_file
+        }
+
+        return jsonify(result), 202
+
+    except Exception as e:
+        return jsonify({
+            "error": f"Failed to queue initial clustering job: {str(e)}"
+        }), 500
 
 
 @api.route("/jobs/user", methods=["GET"])
 def get_user_jobs():
     """
-    Mock endpoint for getting user jobs.
-    Returns mock job data for frontend testing.
+    Get all jobs from the RQ queue.
+    Returns jobs with status, progress, and metadata.
     """
-    # Mock jobs with different statuses
-    jobs = [
-        {
-            "id": "job_001",
-            "job_type": "format_conversion",
-            "status": "completed",
-            "progress": 100,
-            "created_at": "2024-01-15T10:30:00Z",
-            "completed_at": "2024-01-15T10:32:15Z",
-            "parameters": {
-                "archive_name": "sample_ecotaxa.zip",
-                "encoding": "utf-8",
-                "delimiter": "\t"
-            },
-            "result_url": "/files/converted_sample"
-        },
-        {
-            "id": "job_002",
-            "job_type": "feature_extraction",
-            "status": "running",
-            "progress": 45,
-            "created_at": "2024-01-15T11:00:00Z",
-            "current_step": "Processing batch 450/1000",
-            "eta": 300,
-            "parameters": {
-                "archive_name": "marine_plankton.zip",
-                "model": "resnet50",
-                "batch_size": 512
-            },
-            "logs": [
-                {
-                    "timestamp": "2024-01-15T11:00:00Z",
-                    "level": "info",
-                    "message": "Starting feature extraction..."
-                },
-                {
-                    "timestamp": "2024-01-15T11:05:30Z",
-                    "level": "info",
-                    "message": "Processed 200 images"
-                },
-                {
-                    "timestamp": "2024-01-15T11:10:15Z",
-                    "level": "info",
-                    "message": "Processed 450 images"
-                }
-            ]
-        },
-        {
-            "id": "job_003",
-            "job_type": "initial_clustering",
-            "status": "failed",
-            "progress": 25,
-            "created_at": "2024-01-15T09:15:00Z",
-            "failed_at": "2024-01-15T09:45:30Z",
-            "error_message": "Insufficient memory for clustering. Try reducing batch size.",
-            "parameters": {
-                "min_cluster_size": 128,
-                "method": "EOM"
-            }
-        }
-    ]
+    try:
+        from rq import Queue
+        from morphocluster.extensions import rq
 
-    return jsonify(jobs), 200
+        queue = rq.get_queue()
+        all_jobs = []
+
+        # Get jobs from different registries
+        try:
+            # Active/queued jobs
+            for job in queue.jobs:
+                job_data = _format_job_data(job)
+                if job_data:
+                    all_jobs.append(job_data)
+
+            # Recently finished jobs
+            finished_registry = queue.finished_job_registry
+            for job_id in finished_registry.get_job_ids(0, 20):
+                job = queue.fetch_job(job_id)
+                if job:
+                    job_data = _format_job_data(job)
+                    if job_data:
+                        all_jobs.append(job_data)
+
+            # Failed jobs
+            failed_registry = queue.failed_job_registry
+            for job_id in failed_registry.get_job_ids(0, 20):
+                job = queue.fetch_job(job_id)
+                if job:
+                    job_data = _format_job_data(job)
+                    if job_data:
+                        all_jobs.append(job_data)
+
+        except Exception as e:
+            print(f"Error fetching jobs: {e}")
+
+        # Sort by creation time (newest first)
+        all_jobs.sort(key=lambda x: x.get('created_at', ''), reverse=True)
+
+        return jsonify(all_jobs), 200
+
+    except Exception as e:
+        print(f"Error in get_user_jobs: {e}")
+        return jsonify([]), 200
+
+
+def _format_job_data(job):
+    """Format RQ job data for frontend consumption."""
+    try:
+        if not job:
+            return None
+
+        # Determine job status
+        if job.is_queued:
+            status = 'queued'
+        elif job.is_started:
+            status = job.meta.get('status', 'running')
+        elif job.is_finished:
+            status = job.meta.get('status', 'completed')
+        elif job.is_failed:
+            status = 'failed'
+        else:
+            status = 'unknown'
+
+        job_data = {
+            "id": job.id,
+            "job_type": job.meta.get('job_type', 'unknown'),
+            "status": status,
+            "progress": job.meta.get('progress', 0),
+            "created_at": job.meta.get('created_at'),
+            "current_step": job.meta.get('current_step'),
+            "parameters": job.meta.get('parameters', {}),
+            "archive_name": job.meta.get('archive_name')
+        }
+
+        # Add completion/failure details
+        if job.meta.get('completed_at'):
+            job_data['completed_at'] = job.meta['completed_at']
+            job_data['result'] = job.meta.get('result')
+
+        if job.meta.get('failed_at'):
+            job_data['failed_at'] = job.meta['failed_at']
+            job_data['error_message'] = job.meta.get('error_message')
+
+        # Add timing info
+        if job.started_at:
+            job_data['started_at'] = job.started_at.isoformat()
+        if job.ended_at:
+            job_data['ended_at'] = job.ended_at.isoformat()
+
+        return job_data
+
+    except Exception as e:
+        print(f"Error formatting job {job.id if job else 'None'}: {e}")
+        return None
 
 
 @api.route("/jobs/<job_id>/status", methods=["GET"])

@@ -1,6 +1,7 @@
 import { createApp } from 'vue'
 import App from './App.vue'
 import router from './router'
+import axios from 'axios'
 
 // Bootstrap Vue 3
 import BootstrapVueNext from 'bootstrap-vue-next'
@@ -11,6 +12,9 @@ import 'bootstrap-vue-next/dist/bootstrap-vue-next.css'
 import './assets/styles.css'
 
 const app = createApp(App)
+
+// Configure axios
+app.config.globalProperties.$axios = axios
 
 app.use(router)
 app.use(BootstrapVueNext)

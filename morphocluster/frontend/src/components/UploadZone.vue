@@ -220,6 +220,7 @@ export default {
       this.$emit('upload-start', files);
       
       try {
+        console.log('UploadZone: Starting axios post to', this.uploadUrl);
         const response = await axios.post(this.uploadUrl, formData, {
           headers: {
             'Content-Type': 'multipart/form-data',
@@ -229,22 +230,29 @@ export default {
             this.updateProgress(progressEvent);
           },
         });
-        
+
+        console.log('UploadZone: Axios post completed, response:', response);
+
         this.uploadedFiles = files.map(file => ({
           name: file.name,
           size: file.size,
           type: file.type
         }));
-        
+
+        console.log('UploadZone: Set uploadedFiles:', this.uploadedFiles);
+
         this.uploadComplete = true;
         this.isUploading = false;
-        
+
+        console.log('UploadZone: About to emit upload-complete event');
         this.$emit('upload-complete', {
           files: this.uploadedFiles,
           response: response.data
         });
+        console.log('UploadZone: Emitted upload-complete event');
         
       } catch (error) {
+        console.error('UploadZone: Error during upload:', error);
         this.isUploading = false;
         
         if (axios.isCancel(error)) {

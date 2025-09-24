@@ -273,25 +273,19 @@ export default {
       showAdvanced: false,
       customModelFile: null,
       parameters: {
-        model: 'resnet50',
+        model: 'resnet18',
         custom_architecture: '',
         batch_size: 512,
         normalize: true,
         device: 'auto',
-        input_mean: '',
-        input_std: '',
+        input_mean: '0.485,0.456,0.406',
+        input_std: '0.229,0.224,0.225',
         image_size: 224,
         num_workers: 0,
         output_format: 'hdf5'
       },
       modelOptions: [
-        { value: 'resnet50', text: 'ResNet-50 (ImageNet)' },
-        { value: 'resnet101', text: 'ResNet-101 (ImageNet)' },
-        { value: 'vgg16', text: 'VGG-16 (ImageNet)' },
-        { value: 'vgg19', text: 'VGG-19 (ImageNet)' },
-        { value: 'densenet121', text: 'DenseNet-121 (ImageNet)' },
-        { value: 'mobilenet_v2', text: 'MobileNet V2 (ImageNet)' },
-        { value: 'efficientnet_b0', text: 'EfficientNet B0 (ImageNet)' },
+        { value: 'resnet18', text: 'ResNet-18 (ImageNet) - Default' },
         { value: 'custom', text: 'Upload Custom Model...' }
       ],
       architectureOptions: [

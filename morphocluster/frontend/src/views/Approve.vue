@@ -281,6 +281,14 @@ export default {
             // Should members_url be updated (with unique id etc.) on response?
             var updateMembersUrl = false;
 
+            // Guard against null node
+            if (!this.node) {
+                if ($state && $state.complete) {
+                    $state.complete();
+                }
+                return;
+            }
+
             if (!this.members_url) {
                 const nodes = this.node.children;
                 this.members_url = `/api/nodes/${
@@ -401,6 +409,12 @@ export default {
         },
         moveupMember(member) {
             console.log("Remove", this.getUniqueId(member));
+
+            // Guard against null node
+            if (!this.node || !this.node.parent_id) {
+                console.error("Cannot move member: node or parent_id is null");
+                return;
+            }
 
             // TODO: Also reject members.
             api.nodeAdoptMembers(this.node.parent_id, [member])

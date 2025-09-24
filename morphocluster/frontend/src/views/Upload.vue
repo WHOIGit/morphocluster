@@ -67,22 +67,35 @@
                     </div>
 
                     <!-- EcoTaxa Conversion Warning -->
-                    <b-alert
-                      v-if="archive.needsConversion"
-                      variant="warning"
-                      show
-                      class="mt-2"
-                    >
+                    <div v-if="archive.needsConversion" class="alert alert-warning mt-2">
                       <i class="mdi mdi-alert"></i>
                       This archive appears to be in EcoTaxa format and needs conversion.
-                      <b-button
-                        variant="warning"
-                        size="sm"
-                        class="ms-2"
+                      <button
+                        class="btn btn-warning btn-sm ms-2"
                         @click="showConvertModal(archive)"
                       >
                         Convert Format
-                      </b-button>
+                      </button>
+                    </div>
+
+                    <!-- Error Details -->
+                    <b-alert
+                      v-if="archive.status === 'error'"
+                      variant="danger"
+                      show
+                      class="mt-2"
+                    >
+                      <i class="mdi mdi-alert-circle"></i>
+                      <strong>Validation Error:</strong><br>
+                      {{ archive.error || 'Unknown error occurred during validation' }}
+                      <div v-if="archive.validation && archive.validation.validation_warnings && archive.validation.validation_warnings.length" class="mt-2">
+                        <small><strong>Warnings:</strong></small>
+                        <ul class="mb-0 mt-1">
+                          <li v-for="warning in archive.validation.validation_warnings" :key="warning">
+                            {{ warning }}
+                          </li>
+                        </ul>
+                      </div>
                     </b-alert>
 
                     <!-- Archive Actions -->
@@ -105,6 +118,42 @@
                         <i class="mdi mdi-eye"></i>
                         Preview
                       </b-button>
+                    </div>
+
+                    <!-- Post-Processing Actions -->
+                    <div v-if="archive.status === 'processed'" class="archive-actions mt-2">
+                      <b-button
+                        variant="success"
+                        size="sm"
+                        @click="showClusterModal(archive)"
+                        class="me-2"
+                      >
+                        <i class="mdi mdi-sitemap"></i>
+                        Create Project
+                      </b-button>
+                      <b-button
+                        variant="outline-secondary"
+                        size="sm"
+                        @click="previewArchive(archive)"
+                      >
+                        <i class="mdi mdi-eye"></i>
+                        Preview
+                      </b-button>
+                    </div>
+                    <!-- Project Actions -->
+                    <div v-if="archive.status === 'clustered'" class="archive-actions mt-2">
+                      <b-button
+                        variant="primary"
+                        size="sm"
+                        @click="viewProject(archive)"
+                        class="me-2"
+                      >
+                        <i class="mdi mdi-folder-open"></i>
+                        View Project
+                      </b-button>
+                      <span class="project-info text-muted">
+                        Project: {{ archive.projectName || 'Unknown' }}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -141,6 +190,15 @@
       :archive="selectedArchive"
       @extract="handleExtract"
       @cancel="hideExtractModal"
+    />
+
+    <!-- Clustering Modal -->
+    <cluster-modal
+      v-if="showingClusterModal"
+      :archive="selectedArchive"
+      :feature-file="selectedArchive?.featureFile"
+      @cluster="handleCluster"
+      @cancel="hideClusterModal"
     />
 
     <!-- Archive Preview Modal -->
@@ -192,6 +250,7 @@ import JobStatus from '@/components/JobStatus.vue';
 import DarkModeControl from '@/components/DarkModeControl.vue';
 import FormatModal from '@/components/FormatModal.vue';
 import FeatureModal from '@/components/FeatureModal.vue';
+import ClusterModal from '@/components/ClusterModal.vue';
 
 export default {
   name: 'UploadView',
@@ -200,7 +259,8 @@ export default {
     JobStatus,
     DarkModeControl,
     FormatModal,
-    FeatureModal
+    FeatureModal,
+    ClusterModal
   },
   data() {
     return {
@@ -211,6 +271,7 @@ export default {
       selectedArchive: null,
       showingConvertModal: false,
       showingExtractModal: false,
+      showingClusterModal: false,
       showingPreviewModal: false,
       previewData: null
     };
@@ -225,36 +286,52 @@ export default {
     },
 
     async handleUploadComplete(result) {
+      console.log('Upload.vue: handleUploadComplete called');
       console.log('Upload completed:', result);
-      
+
+      // Debug: check the structure
+      console.log('result.response:', result.response);
+      console.log('result.response?.files:', result.response?.files);
+
+      // Get files from the API response (not the component's uploadedFiles)
+      const uploadedFiles = result.response?.files || [];
+      console.log('Files to validate:', uploadedFiles);
+
+      if (uploadedFiles.length === 0) {
+        console.error('No files found in response for validation');
+        return;
+      }
+
       // Process uploaded files and validate them
-      for (const file of result.files) {
+      for (const file of uploadedFiles) {
+        console.log('Validating file:', file.name);
         try {
-          const validation = await this.$axios.get(`/api/files/${file.name}/validate`);
-          this.uploadedArchives.push({
+          const validation = await this.$axios.get(`/api/files/${encodeURIComponent(file.name)}/validate`);
+          console.log('Validation result:', validation.data);
+
+          const archiveData = {
             id: Date.now() + Math.random(),
             name: file.name,
             size: file.size,
-            status: 'validating',
+            status: 'ready',
             format: validation.data.format,
             needsConversion: validation.data.needs_conversion,
             isValid: validation.data.is_valid,
             validation: validation.data
-          });
+          };
+
+          this.uploadedArchives.push(archiveData);
         } catch (error) {
-          console.error('Validation failed:', error);
+          console.error('Validation failed for', file.name, ':', error);
           this.uploadedArchives.push({
             id: Date.now() + Math.random(),
             name: file.name,
             size: file.size,
             status: 'error',
-            error: error.message
+            error: error.response?.data?.error || error.message
           });
         }
       }
-      
-      // Update archive statuses
-      this.updateArchiveStatuses();
     },
 
     handleUploadError(error) {
@@ -301,6 +378,24 @@ export default {
       this.selectedArchive = null;
     },
 
+    showClusterModal(archive) {
+      this.selectedArchive = archive;
+      this.showingClusterModal = true;
+    },
+
+    hideClusterModal() {
+      this.showingClusterModal = false;
+      this.selectedArchive = null;
+    },
+    viewProject(archive) {
+      if (archive.projectId) {
+        // Navigate to the project view
+        this.$router.push(`/projects/${archive.projectId}`);
+      } else {
+        console.error('No project ID available for archive:', archive.name);
+      }
+    },
+
     async previewArchive(archive) {
       try {
         const response = await this.$axios.get(`/api/files/${archive.name}/preview`);
@@ -317,65 +412,118 @@ export default {
     },
 
     async handleConvert(parameters) {
+      const archive = this.selectedArchive;
       this.hideConvertModal();
-      
+
+      if (!archive) {
+        console.error('No archive selected for conversion');
+        return;
+      }
+
       try {
         await this.$axios.post(
-          `/api/files/${this.selectedArchive.name}/convert`,
+          `/api/files/${archive.name}/convert`,
           parameters
         );
-        
-        this.$bvToast.toast('Format conversion started.', {
-          title: 'Conversion Started',
-          variant: 'info',
-          solid: true
-        });
-        
+
+        console.log('Format conversion started for:', archive.name);
+
         // Update archive status
-        this.selectedArchive.status = 'converting';
-        
+        archive.status = 'converting';
+
       } catch (error) {
         console.error('Conversion failed:', error);
-        this.$bvToast.toast('Failed to start conversion.', {
-          title: 'Conversion Error',
-          variant: 'danger',
-          solid: true
-        });
+        console.error('Error details:', error.response?.data);
       }
     },
 
     async handleExtract(parameters) {
+      const archive = this.selectedArchive;
       this.hideExtractModal();
-      
+
+      if (!archive) {
+        console.error('No archive selected for extraction');
+        return;
+      }
+
       try {
         await this.$axios.post(
-          `/api/files/${this.selectedArchive.name}/extract`,
+          `/api/files/${archive.name}/extract`,
           parameters
         );
-        
-        this.$bvToast.toast('Feature extraction started.', {
-          title: 'Extraction Started',
-          variant: 'info',
-          solid: true
-        });
-        
+
+        console.log('Feature extraction started for:', archive.name);
+
+        // Update archive status
+        archive.status = 'extracting';
+
       } catch (error) {
         console.error('Extraction failed:', error);
-        this.$bvToast.toast('Failed to start feature extraction.', {
-          title: 'Extraction Error',
-          variant: 'danger',
-          solid: true
-        });
+        console.error('Error details:', error.response?.data);
+      }
+    },
+
+    async handleCluster(parameters) {
+      const archive = this.selectedArchive;
+      this.hideClusterModal();
+
+      if (!archive) {
+        console.error('No archive selected for clustering');
+        return;
+      }
+
+      try {
+        await this.$axios.post(
+          `/api/files/${encodeURIComponent(archive.name)}/cluster`,
+          { ...parameters, feature_file: archive.featureFile }
+        );
+
+        console.log('Clustering started for:', archive.name);
+
+        // Update archive status
+        archive.status = 'clustering';
+
+      } catch (error) {
+        console.error('Clustering failed:', error);
+        console.error('Error details:', error.response?.data);
       }
     },
 
     handleJobCompleted(job) {
-      this.$bvToast.toast(`${this.getJobTitle(job)} completed successfully!`, {
-        title: 'Job Completed',
-        variant: 'success',
-        solid: true
-      });
-      
+      // Update archive status based on job type
+      if (job.job_type === 'format_conversion' && job.archive_name) {
+        const archive = this.uploadedArchives.find(a => a.name === job.archive_name);
+        if (archive) {
+          archive.status = 'ready';
+          archive.format = 'standard';
+          archive.needsConversion = false;
+
+          // Update archive name to point to converted file
+          if (job.result && job.result.converted_file) {
+            archive.name = job.result.converted_file;
+          }
+        }
+      } else if (job.job_type === 'feature_extraction' && job.archive_name) {
+        const archive = this.uploadedArchives.find(a => a.name === job.archive_name);
+        if (archive) {
+          archive.status = 'processed';
+          // Store feature file info for clustering
+          if (job.result && job.result.feature_file) {
+            archive.featureFile = job.result.feature_file;
+          }
+        }
+      } else if (job.job_type === 'initial_clustering' && job.archive_name) {
+        const archive = this.uploadedArchives.find(a => a.name === job.archive_name);
+        if (archive) {
+          archive.status = 'clustered';
+          // Store project info
+          if (job.result && job.result.project_id) {
+            archive.projectId = job.result.project_id;
+            archive.projectName = job.result.project_name;
+          }
+        }
+      }
+
       // Navigate to result if applicable
       if (job.result_url) {
         this.$router.push(job.result_url);
@@ -383,20 +531,17 @@ export default {
     },
 
     handleJobFailed(job) {
-      this.$bvToast.toast(`${this.getJobTitle(job)} failed: ${job.error_message}`, {
-        title: 'Job Failed',
-        variant: 'danger',
-        solid: true,
-        autoHideDelay: 8000
-      });
+      // Reset archive status if conversion failed
+      if (job.job_type === 'format_conversion' && job.archive_name) {
+        const archive = this.uploadedArchives.find(a => a.name === job.archive_name);
+        if (archive) {
+          archive.status = 'ready'; // Back to ready so user can try again
+        }
+      }
     },
 
-    handleJobCancelled(job) {
-      this.$bvToast.toast(`${this.getJobTitle(job)} was cancelled.`, {
-        title: 'Job Cancelled',
-        variant: 'warning',
-        solid: true
-      });
+    handleJobCancelled() {
+      // Job was cancelled, no specific action needed
     },
 
     getJobTitle(job) {
@@ -418,6 +563,11 @@ export default {
         'validating': 'warning',
         'ready': 'success',
         'converting': 'info',
+        'extracting': 'info',
+        'processing': 'info',
+        'clustering': 'info',
+        'processed': 'primary',
+        'clustered': 'success',
         'error': 'danger'
       };
       return variants[status] || 'secondary';
@@ -428,6 +578,11 @@ export default {
         'validating': 'Validating',
         'ready': 'Ready',
         'converting': 'Converting',
+        'extracting': 'Extracting',
+        'processing': 'Processing',
+        'clustering': 'Clustering',
+        'processed': 'Processed',
+        'clustered': 'Project Created',
         'error': 'Error'
       };
       return texts[status] || 'Unknown';
@@ -475,6 +630,20 @@ export default {
   padding: 1.5rem;
   position: sticky;
   top: 2rem;
+  max-height: calc(100vh - 4rem);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.job-status-section h4 {
+  margin-bottom: 1rem;
+  flex-shrink: 0;
+}
+
+.job-status-section .job-status-container {
+  flex: 1;
+  min-height: 0;
 }
 
 .archives-list {
