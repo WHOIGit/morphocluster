@@ -182,15 +182,16 @@
             no-fade
             header-bg-variant="success"
             title="Growing done"
+            hide-footer
         >
             <div class="d-block text-center">
                 Growing is done for this project.
             </div>
-            <footer slot="modal-footer">
+            <div class="d-flex justify-content-center mt-3">
                 <b-button variant="primary" :to="{ name: 'projects' }"
                     >Back to projects</b-button
                 >
-            </footer>
+            </div>
         </b-modal>
     </div>
 </template>
