@@ -71,6 +71,14 @@
                             name: 'bisect',
                             params: { project_id: data.item.project_id },
                         }">Grow</b-button>
+                        <b-button
+                            size="sm"
+                            variant="info"
+                            class="mr-2"
+                            @click="showReclusterModal(data.item)"
+                        >
+                            Re-cluster
+                        </b-button>
                     </template>
                     <template v-slot:empty>
                         <div class="text-center">No projects available.</div>
@@ -84,12 +92,21 @@
                 </div>
             </div>
         </div>
+
+        <!-- Re-cluster Modal -->
+        <cluster-modal
+            v-if="showReclusteringModal"
+            :project="selectedProject"
+            @cluster="handleRecluster"
+            @cancel="handleReclusterCancel"
+        />
     </div>
 </template>
 
 <script>
 import * as api from "@/helpers/api.js";
 import DarkModeControl from "@/components/DarkModeControl.vue";
+import ClusterModal from "@/components/ClusterModal.vue";
 
 
 import Humanize from "humanize-plus";
@@ -97,7 +114,10 @@ import Humanize from "humanize-plus";
 export default {
     name: "ProjectsView",
     props: {},
-    components: { DarkModeControl },
+    components: {
+        DarkModeControl,
+        ClusterModal
+    },
     data() {
         return {
             fields: [
@@ -108,12 +128,44 @@ export default {
             ],
             projects: [],
             alerts: [],
+            showReclusteringModal: false,
+            selectedProject: null,
             // Make Humanize available in template:
             Humanize,
         };
     },
     methods: {
+        showReclusterModal(project) {
+            this.selectedProject = project;
+            this.showReclusteringModal = true;
+        },
 
+        handleRecluster(parameters) {
+            if (!this.selectedProject) return;
+
+            // Start re-clustering job
+            api.reclusterProject(this.selectedProject.project_id, parameters)
+                .then(response => {
+                    this.alerts.push({
+                        variant: 'success',
+                        message: `Re-clustering job started for "${this.selectedProject.name}". Job ID: ${response.job_id}`
+                    });
+                    this.showReclusteringModal = false;
+                    this.selectedProject = null;
+                })
+                .catch(error => {
+                    console.error('Re-clustering failed:', error);
+                    this.alerts.push({
+                        variant: 'danger',
+                        message: `Failed to start re-clustering: ${error.response?.data?.error || error.message}`
+                    });
+                });
+        },
+
+        handleReclusterCancel() {
+            this.showReclusteringModal = false;
+            this.selectedProject = null;
+        },
     },
     mounted() {
         // Load node info

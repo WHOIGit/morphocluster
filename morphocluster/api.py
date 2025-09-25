@@ -999,6 +999,44 @@ def save_project(project_id):
         return jsonify({"url": tree_url})
 
 
+@api.route("/projects/<int:project_id>/recluster", methods=["POST"])
+def recluster_project(project_id):
+    """
+    Start re-clustering background job for an existing project.
+    """
+    from morphocluster.background import reclustering_job
+
+    parameters = request.get_json() or {}
+
+    try:
+        # Queue the background job
+        job = reclustering_job.queue(project_id, parameters)
+
+        # Initialize job metadata
+        job.meta['status'] = 'queued'
+        job.meta['progress'] = 0
+        job.meta['current_step'] = 'Waiting in queue...'
+        job.meta['created_at'] = datetime.now().isoformat()
+        job.meta['job_type'] = 'reclustering'
+        job.meta['project_id'] = project_id
+        job.meta['parameters'] = parameters
+        job.save_meta()
+
+        result = {
+            "job_id": job.id,
+            "status": "queued",
+            "message": "Re-clustering job queued",
+            "parameters": parameters
+        }
+
+        return jsonify(result), 202
+
+    except Exception as e:
+        return jsonify({
+            "error": f"Failed to queue re-clustering job: {str(e)}"
+        }), 500
+
+
 # ===============================================================================
 # /nodes
 # ===============================================================================

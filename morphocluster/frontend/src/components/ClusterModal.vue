@@ -1,35 +1,45 @@
 <template>
   <b-modal
     v-model="isVisible"
-    title="Create Project (Initial Clustering)"
+    :title="modalTitle"
     size="lg"
     @ok="handleCluster"
     @cancel="handleCancel"
     :ok-disabled="!isValid"
-    ok-title="Create Project"
+    :ok-title="okTitle"
     cancel-title="Cancel"
   >
     <div class="cluster-form">
       <b-alert variant="info" show class="mb-4">
         <i class="mdi mdi-sitemap"></i>
-        <strong>Initial Clustering</strong><br>
-        Create a new MorphoCluster project by clustering the extracted features.
-        This will group similar images together based on their visual features.
+        <strong>{{ isReclusterMode ? 'Re-clustering' : 'Initial Clustering' }}</strong><br>
+        {{ isReclusterMode
+           ? 'Re-cluster an existing project with different parameters to create a new project.'
+           : 'Create a new MorphoCluster project by clustering the extracted features.' }}
+        {{ !isReclusterMode ? 'This will group similar images together based on their visual features.' : '' }}
       </b-alert>
 
-      <!-- Archive Information -->
-      <div class="archive-info mb-4">
+      <!-- Source Information -->
+      <div class="source-info mb-4">
         <h6>Source Information</h6>
         <div class="info-grid">
-          <div class="info-item">
+          <div v-if="!isReclusterMode" class="info-item">
             <strong>Archive:</strong>
             <span>{{ archive?.name || 'Unknown' }}</span>
           </div>
-          <div class="info-item" v-if="archive?.validation?.image_count">
+          <div v-if="isReclusterMode" class="info-item">
+            <strong>Original Project:</strong>
+            <span>{{ project?.name || 'Unknown' }}</span>
+          </div>
+          <div v-if="!isReclusterMode && archive?.validation?.image_count" class="info-item">
             <strong>Images:</strong>
             <span>{{ archive.validation.image_count }} images</span>
           </div>
-          <div class="info-item">
+          <div v-if="isReclusterMode" class="info-item">
+            <strong>Project ID:</strong>
+            <span>{{ project?.project_id || 'Unknown' }}</span>
+          </div>
+          <div v-if="!isReclusterMode" class="info-item">
             <strong>Features:</strong>
             <span>{{ featureFile || 'Feature extraction completed' }}</span>
           </div>
@@ -41,7 +51,7 @@
         <b-form-group
           label="Project Name"
           label-for="project-name"
-          description="Choose a descriptive name for your new project"
+          :description="isReclusterMode ? 'Choose a name for the new re-clustered project' : 'Choose a descriptive name for your new project'"
           :invalid-feedback="projectNameError"
           :state="projectNameState"
         >
@@ -203,10 +213,16 @@ export default {
   props: {
     archive: {
       type: Object,
-      required: true
+      required: false,
+      default: null
     },
     featureFile: {
       type: String,
+      default: null
+    },
+    project: {
+      type: Object,
+      required: false,
       default: null
     }
   },
@@ -237,6 +253,15 @@ export default {
     };
   },
   computed: {
+    isReclusterMode() {
+      return this.project !== null;
+    },
+    modalTitle() {
+      return this.isReclusterMode ? 'Re-cluster Project' : 'Create Project (Initial Clustering)';
+    },
+    okTitle() {
+      return this.isReclusterMode ? 'Start Re-clustering' : 'Create Project';
+    },
     projectNameState() {
       if (this.parameters.project_name.length === 0) return null;
       return this.parameters.project_name.length >= 3 ? true : false;
@@ -275,8 +300,11 @@ export default {
     }
   },
   mounted() {
-    // Set default project name based on archive name
-    if (this.archive?.name) {
+    if (this.isReclusterMode && this.project?.name) {
+      // For re-clustering, suggest a name based on the original project
+      this.parameters.project_name = `${this.project.name} (Re-clustered)`;
+    } else if (this.archive?.name) {
+      // For initial clustering, set default project name based on archive name
       const baseName = this.archive.name.replace(/\.(zip|tar|tar\.gz)$/i, '');
       this.parameters.project_name = baseName.replace(/_/g, ' ');
     }

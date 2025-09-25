@@ -608,3 +608,177 @@ def initial_clustering_job(archive_name, feature_file, parameters=None):
             job.meta['failed_at'] = dt.datetime.now().isoformat()
             job.save_meta()
             raise
+
+
+@rq.job(timeout=3600)  # 1 hour timeout
+def reclustering_job(project_id, parameters=None):
+    """
+    Background job for re-clustering an existing project.
+    """
+    print(f"Starting re-clustering for project {project_id}")
+    from rq import get_current_job
+    job = get_current_job()
+    if parameters is None:
+        parameters = {}
+
+    # Create application context for Flask app access
+    from morphocluster import create_app
+    app_instance = create_app()
+
+    with app_instance.app_context():
+        try:
+            from morphocluster.processing.recluster import Recluster
+            from morphocluster.tree import Tree
+            from morphocluster import models
+            import datetime as dt
+            from pathlib import Path
+            import h5py
+
+            # Step 1: Setup parameters
+            job.meta['status'] = 'setting_up'
+            job.meta['progress'] = 10
+            job.meta['current_step'] = 'Setting up re-clustering parameters...'
+            job.save_meta()
+
+            # Extract parameters with defaults
+            new_project_name = parameters.get('project_name', f"Re-clustered Project {project_id}")
+            min_cluster_size = parameters.get('min_cluster_size', 32)
+            min_samples = parameters.get('min_samples', 1)
+            cluster_selection_method = parameters.get('cluster_selection_method', 'leaf')
+            sample_size = parameters.get('sample_size', 0)  # 0 = use all
+            keep_unexplored_ratio = parameters.get('keep_unexplored_ratio', 0.0)
+
+            print(f"Re-clustering parameters: min_cluster_size={min_cluster_size}, method={cluster_selection_method}")
+
+            # Step 2: Load the existing project and export it
+            job.meta['progress'] = 20
+            job.meta['current_step'] = 'Loading existing project...'
+            job.save_meta()
+
+            with database.engine.connect() as conn:
+                db_tree = Tree(conn)
+                existing_project = db_tree.get_project(project_id)
+                root_id = db_tree.get_root_id(project_id)
+
+                # Export existing tree to temporary file
+                temp_tree_path = f"/tmp/temp_tree_{project_id}.zip"
+                db_tree.export_tree(root_id, temp_tree_path)
+
+            # Step 3: Find the feature file (look for existing feature files)
+            job.meta['progress'] = 30
+            job.meta['current_step'] = 'Finding feature file...'
+            job.save_meta()
+
+            files_dir = Path(app_instance.config["FILES_DIR"])
+            # Look for feature files that might match this project
+            feature_files = list(files_dir.glob("*_features.h5"))
+
+            if not feature_files:
+                raise FileNotFoundError("No feature files found for re-clustering")
+
+            # Use the most recent feature file (or implement better matching logic)
+            feature_path = max(feature_files, key=lambda x: x.stat().st_mtime)
+            print(f"Using feature file: {feature_path}")
+
+            # Step 4: Initialize clustering
+            job.meta['progress'] = 40
+            job.meta['current_step'] = 'Initializing re-clustering algorithm...'
+            job.save_meta()
+
+            recluster = Recluster()
+
+            # Step 5: Load features
+            job.meta['progress'] = 50
+            job.meta['current_step'] = 'Loading features...'
+            job.save_meta()
+
+            recluster.load_features(str(feature_path))
+
+            # Step 6: Load existing tree
+            job.meta['progress'] = 60
+            job.meta['current_step'] = 'Loading existing project tree...'
+            job.save_meta()
+
+            recluster.load_tree(temp_tree_path)
+
+            # Step 7: Run clustering
+            job.meta['progress'] = 70
+            job.meta['current_step'] = 'Running HDBSCAN re-clustering...'
+            job.save_meta()
+
+            cluster_kwargs = {
+                'min_cluster_size': min_cluster_size,
+                'min_samples': min_samples,
+                'cluster_selection_method': cluster_selection_method,
+            }
+
+            if sample_size > 0:
+                cluster_kwargs['sample_size'] = sample_size
+
+            if keep_unexplored_ratio > 0:
+                cluster_kwargs['keep_unexplored'] = keep_unexplored_ratio
+
+            recluster.cluster(**cluster_kwargs)
+
+            # Step 8: Create new project from re-clustered tree
+            job.meta['progress'] = 80
+            job.meta['current_step'] = 'Creating new project...'
+            job.save_meta()
+
+            # Get the new clustered tree (should be the second tree)
+            new_tree = recluster.trees[-1]  # Get the most recent tree
+
+            # Step 9: Load into database as new project
+            job.meta['progress'] = 90
+            job.meta['current_step'] = 'Saving new project to database...'
+            job.save_meta()
+
+            with database.engine.connect() as conn:
+                db_tree = Tree(conn)
+
+                with conn.begin():
+                    new_project_id = db_tree.load_project(new_project_name, new_tree)
+                    new_root_id = db_tree.get_root_id(new_project_id)
+
+                    print("Consolidating new tree structure...")
+                    db_tree.consolidate_node(new_root_id)
+
+            # Clean up temporary file
+            Path(temp_tree_path).unlink(missing_ok=True)
+
+            # Step 10: Complete
+            job.meta['status'] = 'completed'
+            job.meta['progress'] = 100
+            job.meta['current_step'] = 'Re-clustering completed successfully'
+            job.meta['completed_at'] = dt.datetime.now().isoformat()
+
+            # Get final statistics
+            cluster_count = len(new_tree.nodes)
+            object_count = len(new_tree.objects)
+
+            result = {
+                'original_project_id': project_id,
+                'new_project_id': new_project_id,
+                'new_project_name': new_project_name,
+                'new_root_id': new_root_id,
+                'cluster_count': cluster_count,
+                'object_count': object_count,
+                'min_cluster_size': min_cluster_size,
+                'cluster_selection_method': cluster_selection_method,
+                'project_url': f'/projects/{new_project_id}'
+            }
+
+            job.meta['result'] = result
+            job.save_meta()
+
+            print(f"Re-clustering completed for project {project_id}")
+            print(f"Created new project '{new_project_name}' (ID: {new_project_id}) with {cluster_count} clusters")
+            return result
+
+        except Exception as e:
+            print(f"Re-clustering failed: {str(e)}")
+            job.meta['status'] = 'failed'
+            job.meta['error_message'] = str(e)
+            job.meta['failed_at'] = dt.datetime.now().isoformat()
+            job.save_meta()
+            raise
