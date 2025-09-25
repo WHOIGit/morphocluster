@@ -108,6 +108,7 @@ def recluster_project(project_id, min_cluster_size):
 # Upload Pipeline Background Jobs
 # ===============================================================================
 
+
 @rq.job(timeout=3600)  # 1 hour timeout
 def extract_features_job(filename, parameters=None):
     """
@@ -127,6 +128,7 @@ def extract_features_job(filename, parameters=None):
 
     # Create application context for Flask app access
     from morphocluster import create_app
+
     app_instance = create_app()
     with app_instance.app_context():
         try:
@@ -141,48 +143,62 @@ def extract_features_job(filename, parameters=None):
             features_path = archive_path.parent / features_filename
 
             # Step 1: Validate archive
-            job.meta['status'] = 'validating'
-            job.meta['progress'] = 5
-            job.meta['current_step'] = 'Validating archive structure...'
+            job.meta["status"] = "validating"
+            job.meta["progress"] = 5
+            job.meta["current_step"] = "Validating archive structure..."
             job.save_meta()
 
             # Check if archive has index.csv
-            with zipfile.ZipFile(archive_path, 'r') as zip_file:
+            with zipfile.ZipFile(archive_path, "r") as zip_file:
                 file_list = zip_file.namelist()
-                print(f"Archive contents: {file_list[:10]}...")  # Show first 10 files for debugging
+                print(
+                    f"Archive contents: {file_list[:10]}..."
+                )  # Show first 10 files for debugging
 
-                if 'index.csv' not in file_list:
+                if "index.csv" not in file_list:
                     # Check if this is an unconverted EcoTaxa file - suggest conversion
-                    ecotaxa_files = [f for f in file_list if f.startswith('ecotaxa_') and f.endswith('.tsv')]
+                    ecotaxa_files = [
+                        f
+                        for f in file_list
+                        if f.startswith("ecotaxa_") and f.endswith(".tsv")
+                    ]
                     if ecotaxa_files:
-                        raise ValueError(f"Archive appears to be in EcoTaxa format (found {ecotaxa_files[0]}). Please convert it first.")
+                        raise ValueError(
+                            f"Archive appears to be in EcoTaxa format (found {ecotaxa_files[0]}). Please convert it first."
+                        )
                     else:
-                        raise ValueError(f"Archive must contain index.csv file. Found files: {', '.join(file_list[:5])}")
+                        raise ValueError(
+                            f"Archive must contain index.csv file. Found files: {', '.join(file_list[:5])}"
+                        )
 
-                image_files = [f for f in file_list if f.lower().endswith(('.jpg', '.jpeg', '.png', '.tiff', '.tif'))]
+                image_files = [
+                    f
+                    for f in file_list
+                    if f.lower().endswith((".jpg", ".jpeg", ".png", ".tiff", ".tif"))
+                ]
                 total_images = len(image_files)
 
             print(f"Archive validation passed. Found {total_images} images")
 
             # Step 2: Setup parameters
-            job.meta['progress'] = 10
-            job.meta['current_step'] = 'Setting up feature extraction parameters...'
+            job.meta["progress"] = 10
+            job.meta["current_step"] = "Setting up feature extraction parameters..."
             job.save_meta()
 
             # Extract parameters with defaults
-            normalize = parameters.get('normalize', True)
-            batch_size = parameters.get('batch_size', 512)
-            model_file = parameters.get('model_file', None)
+            normalize = parameters.get("normalize", True)
+            batch_size = parameters.get("batch_size", 512)
+            model_file = parameters.get("model_file", None)
 
             # Set default model file if not specified
             if model_file is None:
-                model_file = '/code/data/model_state.pth'
+                model_file = "/code/data/model_state.pth"
 
             # Parse input_mean and input_std - handle both string and list formats
             def parse_mean_std(value, default):
                 if isinstance(value, str):
                     if value.strip():
-                        return tuple(map(float, value.split(',')))
+                        return tuple(map(float, value.split(",")))
                     else:
                         return default
                 elif isinstance(value, (list, tuple)):
@@ -190,16 +206,20 @@ def extract_features_job(filename, parameters=None):
                 else:
                     return default
 
-            input_mean = parse_mean_std(parameters.get('input_mean'), (0, 0, 0))
-            input_std = parse_mean_std(parameters.get('input_std'), (1, 1, 1))
+            input_mean = parse_mean_std(parameters.get("input_mean"), (0, 0, 0))
+            input_std = parse_mean_std(parameters.get("input_std"), (1, 1, 1))
 
-            print(f"Using parameters: normalize={normalize}, batch_size={batch_size}, model_file={model_file}")
+            print(
+                f"Using parameters: normalize={normalize}, batch_size={batch_size}, model_file={model_file}"
+            )
             print(f"Input normalization: mean={input_mean}, std={input_std}")
 
             # Step 3: Start feature extraction
-            job.meta['progress'] = 15
-            job.meta['current_step'] = 'Starting feature extraction (this may take several minutes)...'
-            job.meta['total_images'] = total_images
+            job.meta["progress"] = 15
+            job.meta["current_step"] = (
+                "Starting feature extraction (this may take several minutes)..."
+            )
+            job.meta["total_images"] = total_images
             job.save_meta()
 
             # Run MorphoCluster's real feature extraction
@@ -211,27 +231,27 @@ def extract_features_job(filename, parameters=None):
                 batch_size=batch_size,
                 cuda=True,  # Use GPU if available
                 input_mean=input_mean,
-                input_std=input_std
+                input_std=input_std,
             )
 
             # Step 4: Complete
-            job.meta['status'] = 'completed'
-            job.meta['progress'] = 100
-            job.meta['current_step'] = 'Feature extraction completed'
-            job.meta['completed_at'] = dt.datetime.now().isoformat()
+            job.meta["status"] = "completed"
+            job.meta["progress"] = 100
+            job.meta["current_step"] = "Feature extraction completed"
+            job.meta["completed_at"] = dt.datetime.now().isoformat()
 
             # Create result with actual feature file info
             result = {
-                'feature_file': features_filename,
-                'feature_path': str(features_path),
-                'total_images': total_images,
-                'feature_dimensions': 32,  # ResNet18 with 32-dim bottleneck
-                'model_used': f'ResNet18 with 32-dim bottleneck: {model_file}',
-                'normalize': normalize,
-                'batch_size': batch_size
+                "feature_file": features_filename,
+                "feature_path": str(features_path),
+                "total_images": total_images,
+                "feature_dimensions": 32,  # ResNet18 with 32-dim bottleneck
+                "model_used": f"ResNet18 with 32-dim bottleneck: {model_file}",
+                "normalize": normalize,
+                "batch_size": batch_size,
             }
 
-            job.meta['result'] = result
+            job.meta["result"] = result
             job.save_meta()
 
             print(f"Feature extraction completed for {filename}")
@@ -240,9 +260,9 @@ def extract_features_job(filename, parameters=None):
 
         except Exception as e:
             print(f"Feature extraction failed: {str(e)}")
-            job.meta['status'] = 'failed'
-            job.meta['error_message'] = str(e)
-            job.meta['failed_at'] = dt.datetime.now().isoformat()
+            job.meta["status"] = "failed"
+            job.meta["error_message"] = str(e)
+            job.meta["failed_at"] = dt.datetime.now().isoformat()
             job.save_meta()
             raise
 
@@ -265,6 +285,7 @@ def convert_ecotaxa_job(filename, parameters=None):
 
     # Create application context for Flask app access
     from morphocluster import create_app
+
     app_instance = create_app()
     with app_instance.app_context():
         try:
@@ -274,27 +295,27 @@ def convert_ecotaxa_job(filename, parameters=None):
                 raise FileNotFoundError(f"Archive {filename} not found")
 
             # Step 1: Analyze parameters
-            job.meta['status'] = 'analyzing'
-            job.meta['progress'] = 10
-            job.meta['current_step'] = 'Analyzing EcoTaxa format and parameters...'
+            job.meta["status"] = "analyzing"
+            job.meta["progress"] = 10
+            job.meta["current_step"] = "Analyzing EcoTaxa format and parameters..."
             job.save_meta()
 
-            encoding = parameters.get('encoding')
-            delimiter = parameters.get('delimiter')
-            force = parameters.get('force', False)
+            encoding = parameters.get("encoding")
+            delimiter = parameters.get("delimiter")
+            force = parameters.get("force", False)
 
             # Step 2: Create working copy for conversion
-            job.meta['progress'] = 20
-            job.meta['current_step'] = 'Creating working copy...'
+            job.meta["progress"] = 20
+            job.meta["current_step"] = "Creating working copy..."
             job.save_meta()
 
             # Create a copy to work on (fix_ecotaxa modifies in place)
-            work_path = archive_path.with_suffix('.converting.zip')
+            work_path = archive_path.with_suffix(".converting.zip")
             shutil.copy2(archive_path, work_path)
 
             # Step 3: Run EcoTaxa conversion using existing MorphoCluster function
-            job.meta['progress'] = 40
-            job.meta['current_step'] = 'Converting EcoTaxa format to standard format...'
+            job.meta["progress"] = 40
+            job.meta["current_step"] = "Converting EcoTaxa format to standard format..."
             job.save_meta()
 
             try:
@@ -305,11 +326,11 @@ def convert_ecotaxa_job(filename, parameters=None):
                 runner = CliRunner()
                 args = [str(work_path)]
                 if encoding:
-                    args.extend(['--encoding', encoding])
+                    args.extend(["--encoding", encoding])
                 if delimiter:
-                    args.extend(['--delimiter', delimiter])
+                    args.extend(["--delimiter", delimiter])
                 if force:
-                    args.append('--force')
+                    args.append("--force")
 
                 result = runner.invoke(fix_ecotaxa, args)
                 if result.exit_code != 0:
@@ -321,47 +342,50 @@ def convert_ecotaxa_job(filename, parameters=None):
                 raise conversion_error
 
             # Step 4: Validate conversion result
-            job.meta['progress'] = 80
-            job.meta['current_step'] = 'Validating converted archive...'
+            job.meta["progress"] = 80
+            job.meta["current_step"] = "Validating converted archive..."
             job.save_meta()
 
             # Check that index.csv was created
             import zipfile
-            with zipfile.ZipFile(work_path, 'r') as zf:
-                if 'index.csv' not in zf.namelist():
+
+            with zipfile.ZipFile(work_path, "r") as zf:
+                if "index.csv" not in zf.namelist():
                     raise ValueError("Conversion failed: index.csv not created")
 
             # Step 5: Replace original with converted version
-            job.meta['progress'] = 95
-            job.meta['current_step'] = 'Finalizing converted archive...'
+            job.meta["progress"] = 95
+            job.meta["current_step"] = "Finalizing converted archive..."
             job.save_meta()
 
             # Move converted file to final location
-            converted_path = archive_path.with_name(f"{archive_path.stem}_converted{archive_path.suffix}")
+            converted_path = archive_path.with_name(
+                f"{archive_path.stem}_converted{archive_path.suffix}"
+            )
             work_path.rename(converted_path)
 
             # Complete
-            job.meta['status'] = 'completed'
-            job.meta['progress'] = 100
-            job.meta['current_step'] = 'EcoTaxa conversion completed'
-            job.meta['completed_at'] = dt.datetime.now().isoformat()
-            job.meta['result'] = {
-                'converted_file': converted_path.name,
-                'original_file': filename,
-                'encoding': encoding,
-                'delimiter': delimiter,
-                'conversion_method': 'morphocluster.scripts.fix_ecotaxa'
+            job.meta["status"] = "completed"
+            job.meta["progress"] = 100
+            job.meta["current_step"] = "EcoTaxa conversion completed"
+            job.meta["completed_at"] = dt.datetime.now().isoformat()
+            job.meta["result"] = {
+                "converted_file": converted_path.name,
+                "original_file": filename,
+                "encoding": encoding,
+                "delimiter": delimiter,
+                "conversion_method": "morphocluster.scripts.fix_ecotaxa",
             }
             job.save_meta()
 
             print(f"EcoTaxa conversion completed: {filename} -> {converted_path.name}")
-            return job.meta['result']
+            return job.meta["result"]
 
         except Exception as e:
             print(f"EcoTaxa conversion failed: {str(e)}")
-            job.meta['status'] = 'failed'
-            job.meta['error_message'] = str(e)
-            job.meta['failed_at'] = dt.datetime.now().isoformat()
+            job.meta["status"] = "failed"
+            job.meta["error_message"] = str(e)
+            job.meta["failed_at"] = dt.datetime.now().isoformat()
             job.save_meta()
             raise
 
@@ -382,6 +406,7 @@ def initial_clustering_job(archive_name, feature_file, parameters=None):
 
     # Create application context for Flask app access
     from morphocluster import create_app
+
     app_instance = create_app()
     with app_instance.app_context():
         try:
@@ -395,25 +420,31 @@ def initial_clustering_job(archive_name, feature_file, parameters=None):
                 raise FileNotFoundError(f"Feature file {feature_file} not found")
 
             # Step 1: Setup parameters
-            job.meta['status'] = 'setting_up'
-            job.meta['progress'] = 10
-            job.meta['current_step'] = 'Setting up clustering parameters...'
+            job.meta["status"] = "setting_up"
+            job.meta["progress"] = 10
+            job.meta["current_step"] = "Setting up clustering parameters..."
             job.save_meta()
 
             # Extract parameters with defaults
-            project_name = parameters.get('project_name', f"Project-{archive_path.stem}")
-            description = parameters.get('description', '')
-            min_cluster_size = parameters.get('min_cluster_size', 128)
-            min_samples = parameters.get('min_samples', 1)
-            cluster_selection_method = parameters.get('cluster_selection_method', 'leaf')
-            sample_size = parameters.get('sample_size', 0)  # 0 = use all
-            keep_unexplored_ratio = parameters.get('keep_unexplored_ratio', 0.0)
+            project_name = parameters.get(
+                "project_name", f"Project-{archive_path.stem}"
+            )
+            description = parameters.get("description", "")
+            min_cluster_size = parameters.get("min_cluster_size", 128)
+            min_samples = parameters.get("min_samples", 1)
+            cluster_selection_method = parameters.get(
+                "cluster_selection_method", "leaf"
+            )
+            sample_size = parameters.get("sample_size", 0)  # 0 = use all
+            keep_unexplored_ratio = parameters.get("keep_unexplored_ratio", 0.0)
 
-            print(f"Clustering parameters: min_cluster_size={min_cluster_size}, method={cluster_selection_method}")
+            print(
+                f"Clustering parameters: min_cluster_size={min_cluster_size}, method={cluster_selection_method}"
+            )
 
             # Step 2: Extract images from archive
-            job.meta['progress'] = 15
-            job.meta['current_step'] = 'Extracting images from archive...'
+            job.meta["progress"] = 15
+            job.meta["current_step"] = "Extracting images from archive..."
             job.save_meta()
 
             import zipfile
@@ -428,14 +459,16 @@ def initial_clustering_job(archive_name, feature_file, parameters=None):
             archive_images_dir.mkdir(parents=True, exist_ok=True)
 
             # Read index.csv from archive to get object_id and path mappings
-            with zipfile.ZipFile(archive_path, 'r') as zf:
-                with zf.open('index.csv') as fp:
-                    archive_df = pd.read_csv(fp, dtype=str, usecols=["object_id", "path"])
+            with zipfile.ZipFile(archive_path, "r") as zf:
+                with zf.open("index.csv") as fp:
+                    archive_df = pd.read_csv(
+                        fp, dtype=str, usecols=["object_id", "path"]
+                    )
 
                 # Extract image files
                 print(f"Extracting {len(archive_df)} images to {archive_images_dir}")
                 for _, row in archive_df.iterrows():
-                    image_path = row['path']
+                    image_path = row["path"]
                     if image_path in zf.namelist():
                         # Extract to the archive-specific directory
                         extracted_path = zf.extract(image_path, archive_images_dir)
@@ -446,28 +479,36 @@ def initial_clustering_job(archive_name, feature_file, parameters=None):
                             shutil.move(extracted_path, final_path)
 
             # Step 3: Load objects from archive into database
-            job.meta['progress'] = 25
-            job.meta['current_step'] = 'Loading objects into database...'
+            job.meta["progress"] = 25
+            job.meta["current_step"] = "Loading objects into database..."
             job.save_meta()
 
             # Load feature vectors from H5 file
-            with h5py.File(feature_path, 'r') as h5f:
-                feature_object_ids = h5f['object_id'][:]
-                features = h5f['features'][:]
+            with h5py.File(feature_path, "r") as h5f:
+                feature_object_ids = h5f["object_id"][:]
+                features = h5f["features"][:]
 
                 # Convert bytes to strings if necessary
-                if hasattr(feature_object_ids[0], 'decode'):
-                    feature_object_ids = [oid.decode('utf-8') for oid in feature_object_ids]
+                if hasattr(feature_object_ids[0], "decode"):
+                    feature_object_ids = [
+                        oid.decode("utf-8") for oid in feature_object_ids
+                    ]
                 else:
                     feature_object_ids = list(feature_object_ids)
 
-            feature_dims = features.shape[1] if len(features.shape) > 1 else len(features[0]) if len(features) > 0 else 0
-            print(f"Archive contains {len(archive_df)} objects, features for {len(feature_object_ids)} objects")
+            feature_dims = (
+                features.shape[1]
+                if len(features.shape) > 1
+                else len(features[0]) if len(features) > 0 else 0
+            )
+            print(
+                f"Archive contains {len(archive_df)} objects, features for {len(feature_object_ids)} objects"
+            )
             print(f"Feature dimensions: {feature_dims}")
 
             # Step 3: Insert objects into database with vectors
-            job.meta['progress'] = 30
-            job.meta['current_step'] = 'Inserting objects into database...'
+            job.meta["progress"] = 30
+            job.meta["current_step"] = "Inserting objects into database..."
             job.save_meta()
 
             # Create object data for database insertion
@@ -475,18 +516,20 @@ def initial_clustering_job(archive_name, feature_file, parameters=None):
             feature_dict = dict(zip(feature_object_ids, features))
 
             for _, row in archive_df.iterrows():
-                object_id = row['object_id']
-                original_path = row['path']
+                object_id = row["object_id"]
+                original_path = row["path"]
                 # Update path to point to extracted image in archive subdirectory
                 extracted_path = f"{archive_path.stem}/{Path(original_path).name}"
                 vector = feature_dict.get(object_id)
 
                 if vector is not None:
-                    object_data.append({
-                        'object_id': object_id,
-                        'path': extracted_path,  # Path relative to IMAGES_DIR
-                        'vector': vector  # Keep as numpy array - should be 32 dimensions now
-                    })
+                    object_data.append(
+                        {
+                            "object_id": object_id,
+                            "path": extracted_path,  # Path relative to IMAGES_DIR
+                            "vector": vector,  # Keep as numpy array - should be 32 dimensions now
+                        }
+                    )
 
             # Insert objects into database
             with database.engine.connect() as conn:
@@ -494,13 +537,19 @@ def initial_clustering_job(archive_name, feature_file, parameters=None):
                     # Check if objects already exist to avoid duplicates
                     existing_objects = conn.execute(
                         models.objects.select().where(
-                            models.objects.c.object_id.in_([obj['object_id'] for obj in object_data])
+                            models.objects.c.object_id.in_(
+                                [obj["object_id"] for obj in object_data]
+                            )
                         )
                     ).fetchall()
                     existing_object_ids = {obj.object_id for obj in existing_objects}
 
                     # Only insert new objects
-                    new_objects = [obj for obj in object_data if obj['object_id'] not in existing_object_ids]
+                    new_objects = [
+                        obj
+                        for obj in object_data
+                        if obj["object_id"] not in existing_object_ids
+                    ]
 
                     if new_objects:
                         print(f"Inserting {len(new_objects)} new objects into database")
@@ -509,58 +558,60 @@ def initial_clustering_job(archive_name, feature_file, parameters=None):
                         print("All objects already exist in database")
 
             # Step 4: Initialize clustering
-            job.meta['progress'] = 40
-            job.meta['current_step'] = 'Initializing clustering algorithm...'
+            job.meta["progress"] = 40
+            job.meta["current_step"] = "Initializing clustering algorithm..."
             job.save_meta()
 
             recluster = Recluster()
 
             # Step 5: Load features
-            job.meta['progress'] = 50
-            job.meta['current_step'] = 'Loading extracted features...'
+            job.meta["progress"] = 50
+            job.meta["current_step"] = "Loading extracted features..."
             job.save_meta()
 
             recluster.load_features(str(feature_path))
 
             # Step 6: Skip init_tree() - let clustering create the tree structure
-            job.meta['progress'] = 60
-            job.meta['current_step'] = 'Preparing clustering...'
+            job.meta["progress"] = 60
+            job.meta["current_step"] = "Preparing clustering..."
             job.save_meta()
 
             # Note: Not calling recluster.init_tree() - this was interfering with clustering
 
             # Step 7: Run clustering
-            job.meta['progress'] = 70
-            job.meta['current_step'] = 'Running HDBSCAN clustering (this may take several minutes)...'
+            job.meta["progress"] = 70
+            job.meta["current_step"] = (
+                "Running HDBSCAN clustering (this may take several minutes)..."
+            )
             job.save_meta()
 
             # Apply sample size and keep_unexplored_ratio if specified
             cluster_kwargs = {
-                'min_cluster_size': min_cluster_size,
-                'min_samples': min_samples,
-                'cluster_selection_method': cluster_selection_method,
+                "min_cluster_size": min_cluster_size,
+                "min_samples": min_samples,
+                "cluster_selection_method": cluster_selection_method,
             }
 
             if sample_size > 0:
-                cluster_kwargs['sample_size'] = sample_size
+                cluster_kwargs["sample_size"] = sample_size
                 print(f"Using sample size: {sample_size}")
 
             if keep_unexplored_ratio > 0:
-                cluster_kwargs['keep_unexplored'] = keep_unexplored_ratio
+                cluster_kwargs["keep_unexplored"] = keep_unexplored_ratio
 
             recluster.cluster(**cluster_kwargs)
 
             # Step 8: Get the clustered tree
-            job.meta['progress'] = 80
-            job.meta['current_step'] = 'Building project tree structure...'
+            job.meta["progress"] = 80
+            job.meta["current_step"] = "Building project tree structure..."
             job.save_meta()
 
             # Get the first (and only) tree from recluster
             tree = recluster.trees[0]
 
             # Step 9: Load into database
-            job.meta['progress'] = 90
-            job.meta['current_step'] = 'Creating project in database...'
+            job.meta["progress"] = 90
+            job.meta["current_step"] = "Creating project in database..."
             job.save_meta()
 
             with database.engine.connect() as conn:
@@ -574,38 +625,40 @@ def initial_clustering_job(archive_name, feature_file, parameters=None):
                     db_tree.consolidate_node(root_id)
 
             # Step 10: Complete
-            job.meta['status'] = 'completed'
-            job.meta['progress'] = 100
-            job.meta['current_step'] = 'Project created successfully'
-            job.meta['completed_at'] = dt.datetime.now().isoformat()
+            job.meta["status"] = "completed"
+            job.meta["progress"] = 100
+            job.meta["current_step"] = "Project created successfully"
+            job.meta["completed_at"] = dt.datetime.now().isoformat()
 
             # Get final statistics
             cluster_count = len(tree.nodes)  # Number of nodes/clusters
             object_count = len(tree.objects)  # Number of objects
 
             result = {
-                'project_id': project_id,
-                'project_name': project_name,
-                'root_id': root_id,
-                'cluster_count': cluster_count,
-                'object_count': object_count,
-                'min_cluster_size': min_cluster_size,
-                'cluster_selection_method': cluster_selection_method,
-                'project_url': f'/projects/{project_id}'
+                "project_id": project_id,
+                "project_name": project_name,
+                "root_id": root_id,
+                "cluster_count": cluster_count,
+                "object_count": object_count,
+                "min_cluster_size": min_cluster_size,
+                "cluster_selection_method": cluster_selection_method,
+                "project_url": f"/projects/{project_id}",
             }
 
-            job.meta['result'] = result
+            job.meta["result"] = result
             job.save_meta()
 
             print(f"Initial clustering completed for {archive_name}")
-            print(f"Created project '{project_name}' with {cluster_count} clusters and {object_count} objects")
+            print(
+                f"Created project '{project_name}' with {cluster_count} clusters and {object_count} objects"
+            )
             return result
 
         except Exception as e:
             print(f"Initial clustering failed: {str(e)}")
-            job.meta['status'] = 'failed'
-            job.meta['error_message'] = str(e)
-            job.meta['failed_at'] = dt.datetime.now().isoformat()
+            job.meta["status"] = "failed"
+            job.meta["error_message"] = str(e)
+            job.meta["failed_at"] = dt.datetime.now().isoformat()
             job.save_meta()
             raise
 
@@ -617,12 +670,14 @@ def reclustering_job(project_id, parameters=None):
     """
     print(f"Starting re-clustering for project {project_id}")
     from rq import get_current_job
+
     job = get_current_job()
     if parameters is None:
         parameters = {}
 
     # Create application context for Flask app access
     from morphocluster import create_app
+
     app_instance = create_app()
 
     with app_instance.app_context():
@@ -635,24 +690,30 @@ def reclustering_job(project_id, parameters=None):
             import h5py
 
             # Step 1: Setup parameters
-            job.meta['status'] = 'setting_up'
-            job.meta['progress'] = 10
-            job.meta['current_step'] = 'Setting up re-clustering parameters...'
+            job.meta["status"] = "setting_up"
+            job.meta["progress"] = 10
+            job.meta["current_step"] = "Setting up re-clustering parameters..."
             job.save_meta()
 
             # Extract parameters with defaults
-            new_project_name = parameters.get('project_name', f"Re-clustered Project {project_id}")
-            min_cluster_size = parameters.get('min_cluster_size', 32)
-            min_samples = parameters.get('min_samples', 1)
-            cluster_selection_method = parameters.get('cluster_selection_method', 'leaf')
-            sample_size = parameters.get('sample_size', 0)  # 0 = use all
-            keep_unexplored_ratio = parameters.get('keep_unexplored_ratio', 0.0)
+            new_project_name = parameters.get(
+                "project_name", f"Re-clustered Project {project_id}"
+            )
+            min_cluster_size = parameters.get("min_cluster_size", 32)
+            min_samples = parameters.get("min_samples", 1)
+            cluster_selection_method = parameters.get(
+                "cluster_selection_method", "leaf"
+            )
+            sample_size = parameters.get("sample_size", 0)  # 0 = use all
+            keep_unexplored_ratio = parameters.get("keep_unexplored_ratio", 0.0)
 
-            print(f"Re-clustering parameters: min_cluster_size={min_cluster_size}, method={cluster_selection_method}")
+            print(
+                f"Re-clustering parameters: min_cluster_size={min_cluster_size}, method={cluster_selection_method}"
+            )
 
             # Step 2: Load the existing project and export it
-            job.meta['progress'] = 20
-            job.meta['current_step'] = 'Loading existing project...'
+            job.meta["progress"] = 20
+            job.meta["current_step"] = "Loading existing project..."
             job.save_meta()
 
             with database.engine.connect() as conn:
@@ -665,8 +726,8 @@ def reclustering_job(project_id, parameters=None):
                 db_tree.export_tree(root_id, temp_tree_path)
 
             # Step 3: Find the feature file (look for existing feature files)
-            job.meta['progress'] = 30
-            job.meta['current_step'] = 'Finding feature file...'
+            job.meta["progress"] = 30
+            job.meta["current_step"] = "Finding feature file..."
             job.save_meta()
 
             files_dir = Path(app_instance.config["FILES_DIR"])
@@ -681,56 +742,56 @@ def reclustering_job(project_id, parameters=None):
             print(f"Using feature file: {feature_path}")
 
             # Step 4: Initialize clustering
-            job.meta['progress'] = 40
-            job.meta['current_step'] = 'Initializing re-clustering algorithm...'
+            job.meta["progress"] = 40
+            job.meta["current_step"] = "Initializing re-clustering algorithm..."
             job.save_meta()
 
             recluster = Recluster()
 
             # Step 5: Load features
-            job.meta['progress'] = 50
-            job.meta['current_step'] = 'Loading features...'
+            job.meta["progress"] = 50
+            job.meta["current_step"] = "Loading features..."
             job.save_meta()
 
             recluster.load_features(str(feature_path))
 
             # Step 6: Load existing tree
-            job.meta['progress'] = 60
-            job.meta['current_step'] = 'Loading existing project tree...'
+            job.meta["progress"] = 60
+            job.meta["current_step"] = "Loading existing project tree..."
             job.save_meta()
 
             recluster.load_tree(temp_tree_path)
 
             # Step 7: Run clustering
-            job.meta['progress'] = 70
-            job.meta['current_step'] = 'Running HDBSCAN re-clustering...'
+            job.meta["progress"] = 70
+            job.meta["current_step"] = "Running HDBSCAN re-clustering..."
             job.save_meta()
 
             cluster_kwargs = {
-                'min_cluster_size': min_cluster_size,
-                'min_samples': min_samples,
-                'cluster_selection_method': cluster_selection_method,
+                "min_cluster_size": min_cluster_size,
+                "min_samples": min_samples,
+                "cluster_selection_method": cluster_selection_method,
             }
 
             if sample_size > 0:
-                cluster_kwargs['sample_size'] = sample_size
+                cluster_kwargs["sample_size"] = sample_size
 
             if keep_unexplored_ratio > 0:
-                cluster_kwargs['keep_unexplored'] = keep_unexplored_ratio
+                cluster_kwargs["keep_unexplored"] = keep_unexplored_ratio
 
             recluster.cluster(**cluster_kwargs)
 
             # Step 8: Create new project from re-clustered tree
-            job.meta['progress'] = 80
-            job.meta['current_step'] = 'Creating new project...'
+            job.meta["progress"] = 80
+            job.meta["current_step"] = "Creating new project..."
             job.save_meta()
 
             # Get the new clustered tree (should be the second tree)
             new_tree = recluster.trees[-1]  # Get the most recent tree
 
             # Step 9: Load into database as new project
-            job.meta['progress'] = 90
-            job.meta['current_step'] = 'Saving new project to database...'
+            job.meta["progress"] = 90
+            job.meta["current_step"] = "Saving new project to database..."
             job.save_meta()
 
             with database.engine.connect() as conn:
@@ -747,38 +808,40 @@ def reclustering_job(project_id, parameters=None):
             Path(temp_tree_path).unlink(missing_ok=True)
 
             # Step 10: Complete
-            job.meta['status'] = 'completed'
-            job.meta['progress'] = 100
-            job.meta['current_step'] = 'Re-clustering completed successfully'
-            job.meta['completed_at'] = dt.datetime.now().isoformat()
+            job.meta["status"] = "completed"
+            job.meta["progress"] = 100
+            job.meta["current_step"] = "Re-clustering completed successfully"
+            job.meta["completed_at"] = dt.datetime.now().isoformat()
 
             # Get final statistics
             cluster_count = len(new_tree.nodes)
             object_count = len(new_tree.objects)
 
             result = {
-                'original_project_id': project_id,
-                'new_project_id': new_project_id,
-                'new_project_name': new_project_name,
-                'new_root_id': new_root_id,
-                'cluster_count': cluster_count,
-                'object_count': object_count,
-                'min_cluster_size': min_cluster_size,
-                'cluster_selection_method': cluster_selection_method,
-                'project_url': f'/projects/{new_project_id}'
+                "original_project_id": project_id,
+                "new_project_id": new_project_id,
+                "new_project_name": new_project_name,
+                "new_root_id": new_root_id,
+                "cluster_count": cluster_count,
+                "object_count": object_count,
+                "min_cluster_size": min_cluster_size,
+                "cluster_selection_method": cluster_selection_method,
+                "project_url": f"/projects/{new_project_id}",
             }
 
-            job.meta['result'] = result
+            job.meta["result"] = result
             job.save_meta()
 
             print(f"Re-clustering completed for project {project_id}")
-            print(f"Created new project '{new_project_name}' (ID: {new_project_id}) with {cluster_count} clusters")
+            print(
+                f"Created new project '{new_project_name}' (ID: {new_project_id}) with {cluster_count} clusters"
+            )
             return result
 
         except Exception as e:
             print(f"Re-clustering failed: {str(e)}")
-            job.meta['status'] = 'failed'
-            job.meta['error_message'] = str(e)
-            job.meta['failed_at'] = dt.datetime.now().isoformat()
+            job.meta["status"] = "failed"
+            job.meta["error_message"] = str(e)
+            job.meta["failed_at"] = dt.datetime.now().isoformat()
             job.save_meta()
             raise

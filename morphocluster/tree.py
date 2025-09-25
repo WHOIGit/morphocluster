@@ -697,6 +697,7 @@ class Tree(object):
         Create a project with a name and optional metadata, return its id.
         """
         import json
+
         values = {"name": name}
         if metadata is not None:
             values["metadata"] = json.dumps(metadata)
