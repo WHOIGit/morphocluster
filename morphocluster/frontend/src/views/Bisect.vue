@@ -1,7 +1,7 @@
 <template>
     <div id="bisect">
         <nav class="navbar navbar-expand-lg navbar-light bg-dark text-light">
-            <router-link class="navbar-brand text-light" to="/"
+            <router-link class="navbar-brand text-light" :to="{ name: 'projects' }"
                 >MorphoCluster</router-link
             >
             <div class="collapse navbar-collapse">

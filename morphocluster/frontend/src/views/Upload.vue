@@ -1,9 +1,12 @@
 <template>
   <div id="upload-view">
     <nav class="navbar navbar-expand-lg navbar navbar-dark bg-dark">
-      <router-link class="navbar-brand" :to="{ name: 'home' }">MorphoCluster</router-link>
+      <router-link class="navbar-brand" :to="{ name: 'projects' }">MorphoCluster</router-link>
       <div class="navbar-collapse">
         <ul class="navbar-nav me-auto">
+          <li class="navbar-item">
+            <router-link class="nav-link" :to="{ name: 'projects' }">Projects</router-link>
+          </li>
           <li class="navbar-item">
             <router-link class="nav-link" :to="{ name: 'files' }">Files</router-link>
           </li>
