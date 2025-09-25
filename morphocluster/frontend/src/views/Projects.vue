@@ -73,9 +73,12 @@
                         }">Grow</b-button>
                         <b-button
                             size="sm"
-                            variant="info"
+                            :variant="isProjectReadyForReclustering(data.item) ? 'info' : 'secondary'"
+                            :disabled="!isProjectReadyForReclustering(data.item)"
                             class="mr-2"
                             @click="showReclusterModal(data.item)"
+                            v-b-tooltip.hover
+                            :title="getReclusterTooltip(data.item)"
                         >
                             Re-cluster
                         </b-button>
@@ -136,6 +139,14 @@ export default {
     },
     methods: {
         showReclusterModal(project) {
+            if (!this.isProjectReadyForReclustering(project)) {
+                this.alerts.push({
+                    variant: 'warning',
+                    message: 'Complete validation and growing stages before re-clustering this project.'
+                });
+                return;
+            }
+
             this.selectedProject = project;
             this.showReclusteringModal = true;
         },
@@ -165,6 +176,51 @@ export default {
         handleReclusterCancel() {
             this.showReclusteringModal = false;
             this.selectedProject = null;
+        },
+
+        isProjectReadyForReclustering(project) {
+            // Project is ready for re-clustering when both validation and growing are complete
+            if (!project.progress) return false;
+
+            const progress = project.progress;
+            const totalNodes = progress.leaves_n_nodes || 0;
+            const approvedNodes = progress.leaves_n_approved_nodes || 0;
+            const filledNodes = progress.leaves_n_filled_nodes || 0;
+
+            // Both validation and growing must be complete
+            return totalNodes > 0 && approvedNodes === totalNodes && filledNodes === totalNodes;
+        },
+
+        getReclusterTooltip(project) {
+            if (!project.progress) {
+                return 'No progress information available';
+            }
+
+            const progress = project.progress;
+            const totalNodes = progress.leaves_n_nodes || 0;
+            const approvedNodes = progress.leaves_n_approved_nodes || 0;
+            const filledNodes = progress.leaves_n_filled_nodes || 0;
+
+            if (totalNodes === 0) {
+                return 'Project has no clusters to re-cluster';
+            }
+
+            const validationComplete = approvedNodes === totalNodes;
+            const growingComplete = filledNodes === totalNodes;
+
+            if (validationComplete && growingComplete) {
+                return 'Ready for re-clustering - validation and growing are complete';
+            }
+
+            const missing = [];
+            if (!validationComplete) {
+                missing.push(`validation (${approvedNodes}/${totalNodes} clusters validated)`);
+            }
+            if (!growingComplete) {
+                missing.push(`growing (${filledNodes}/${totalNodes} clusters grown)`);
+            }
+
+            return `Complete ${missing.join(' and ')} before re-clustering`;
         },
     },
     mounted() {
