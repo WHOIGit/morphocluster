@@ -174,7 +174,7 @@ class Tree(object):
         if not isinstance(tree, processing.Tree):
             tree = processing.Tree.from_saved(tree)
 
-        project_id = self.create_project(name)
+        project_id = self.create_project(name, metadata=tree.meta)
 
         # Lock project
         self.lock_project(project_id)
@@ -692,11 +692,15 @@ class Tree(object):
         rows = self.connection.execute(stmt, {"node_id": node_id}).fetchall()
         return [r for (r,) in rows]
 
-    def create_project(self, name):
+    def create_project(self, name, metadata=None):
         """
-        Create a project with a name and return its id.
+        Create a project with a name and optional metadata, return its id.
         """
-        stmt = projects.insert().values(name=name)
+        import json
+        values = {"name": name}
+        if metadata is not None:
+            values["metadata"] = json.dumps(metadata)
+        stmt = projects.insert().values(**values)
         result = self.connection.execute(stmt)
         project_id = result.inserted_primary_key[0]
 

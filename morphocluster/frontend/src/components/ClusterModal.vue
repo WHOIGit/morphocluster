@@ -301,15 +301,60 @@ export default {
   },
   mounted() {
     if (this.isReclusterMode && this.project?.name) {
-      // For re-clustering, suggest a name based on the original project
-      this.parameters.project_name = `${this.project.name} (Re-clustered)`;
+      // For re-clustering, extract previous parameters and set new defaults
+      const previousParams = this.extractClusteringParameters();
+
+      if (previousParams.min_cluster_size) {
+        // Set new min_cluster_size to half of previous (minimum 8)
+        this.parameters.min_cluster_size = Math.max(8, Math.floor(previousParams.min_cluster_size / 2));
+      } else {
+        // Fallback: assume previous was 64, so new default is 32
+        this.parameters.min_cluster_size = 32;
+      }
+
+      // Copy other parameters from previous clustering
+      if (previousParams.min_samples) {
+        this.parameters.min_samples = previousParams.min_samples;
+      }
+      if (previousParams.cluster_selection_method) {
+        this.parameters.cluster_selection_method = previousParams.cluster_selection_method;
+      }
+
+      // Set project name with new cluster size
+      this.parameters.project_name = `${this.project.name} (${this.parameters.min_cluster_size})`;
     } else if (this.archive?.name) {
       // For initial clustering, set default project name based on archive name
       const baseName = this.archive.name.replace(/\.(zip|tar|tar\.gz)$/i, '');
       this.parameters.project_name = baseName.replace(/_/g, ' ');
     }
   },
+  watch: {
+    // Update project name when min_cluster_size changes (for re-clustering mode)
+    'parameters.min_cluster_size'() {
+      if (this.isReclusterMode && this.project?.name) {
+        // Extract the base name (remove existing cluster size if present)
+        const baseName = this.project.name.replace(/\s*\(\d+\)$/, '');
+        this.parameters.project_name = `${baseName} (${this.parameters.min_cluster_size})`;
+      }
+    }
+  },
   methods: {
+    extractClusteringParameters() {
+      // Extract clustering parameters from project metadata
+      if (!this.project?.metadata) {
+        return {};
+      }
+
+      try {
+        const metadata = JSON.parse(this.project.metadata);
+        // The clustering parameters should be under metadata.cluster
+        return metadata.cluster || {};
+      } catch (e) {
+        console.warn('Failed to parse project metadata:', e);
+        return {};
+      }
+    },
+
     handleCluster() {
       if (this.isValid) {
         this.$emit('cluster', this.parameters);

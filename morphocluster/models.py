@@ -45,6 +45,7 @@ projects = Table(
     Column("name", String),
     Column("creation_date", DateTime, default=datetime.datetime.now),
     Column("visible", Boolean, nullable=False, server_default="t"),
+    Column("metadata", Text, nullable=True),  # JSON metadata for clustering parameters
 )
 
 #: :type nodes: sqlalchemy.sql.schema.Table
