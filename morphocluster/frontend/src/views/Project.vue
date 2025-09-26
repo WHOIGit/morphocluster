@@ -13,6 +13,9 @@
                     <li class="nav-item">
                         <router-link class="nav-link" :to="{ name: 'upload' }">Upload</router-link>
                     </li>
+                    <li class="nav-item">
+                        <router-link class="nav-link" :to="{ name: 'jobs' }">Jobs</router-link>
+                    </li>
                     <li class="nav-item" v-if="project">
                         <router-link class="nav-link"
                             :to="{ name: 'project', params: { project_id: project.project_id } }">{{

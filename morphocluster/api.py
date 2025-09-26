@@ -886,6 +886,7 @@ def _format_job_data(job):
             "current_step": job.meta.get("current_step"),
             "parameters": job.meta.get("parameters", {}),
             "archive_name": job.meta.get("archive_name"),
+            "logs": job.meta.get("logs", []),
         }
 
         # Add completion/failure details
@@ -2108,3 +2109,151 @@ def get_job(job_id):
     result = JobSchema().dump(data)
 
     return jsonify(result)
+
+
+# ===============================================================================
+# Uploaded Archives Management
+# ===============================================================================
+
+@api.route("/uploaded-archives", methods=["GET"])
+def get_uploaded_archives():
+    """Get all uploaded archives for the current user/session."""
+    from morphocluster.models import uploaded_archives
+
+    with database.engine.connect() as conn:
+        result = conn.execute(
+            uploaded_archives.select().order_by(uploaded_archives.c.upload_date.desc())
+        ).fetchall()
+
+        archives = []
+        for row in result:
+            archive_data = {
+                "id": row.id,
+                "filename": row.filename,
+                "original_filename": row.original_filename,
+                "file_size": row.file_size,
+                "upload_date": row.upload_date.isoformat() if row.upload_date else None,
+                "status": row.status,
+                "is_valid": row.is_valid,
+                "needs_conversion": row.needs_conversion,
+                "validation_data": row.validation_data,
+                "feature_file": row.feature_file,
+                "project_id": row.project_id,
+                "error_message": row.error_message,
+                "metadata": row.metadata or "{}"
+            }
+            archives.append(archive_data)
+
+        return jsonify(archives)
+
+
+@api.route("/uploaded-archives", methods=["POST"])
+def save_uploaded_archive():
+    """Save a new uploaded archive record."""
+    from morphocluster.models import uploaded_archives
+    import json
+
+    data = request.get_json()
+
+    insert_data = {
+        "filename": data.get("filename"),
+        "original_filename": data.get("original_filename"),
+        "file_size": data.get("file_size", 0),
+        "status": data.get("status", "uploaded"),
+        "is_valid": data.get("is_valid", False),
+        "needs_conversion": data.get("needs_conversion", False),
+        "validation_data": data.get("validation_data"),
+        "feature_file": data.get("feature_file"),
+        "project_id": data.get("project_id"),
+        "error_message": data.get("error_message"),
+        "metadata": data.get("metadata", "{}")
+    }
+
+    with database.engine.connect() as conn:
+        with conn.begin():
+            result = conn.execute(uploaded_archives.insert().values(**insert_data))
+            archive_id = result.inserted_primary_key[0]
+
+            # Return the created archive with ID
+            row = conn.execute(
+                uploaded_archives.select().where(uploaded_archives.c.id == archive_id)
+            ).fetchone()
+
+            return jsonify({
+                "id": row.id,
+                "filename": row.filename,
+                "original_filename": row.original_filename,
+                "file_size": row.file_size,
+                "upload_date": row.upload_date.isoformat() if row.upload_date else None,
+                "status": row.status,
+                "is_valid": row.is_valid,
+                "needs_conversion": row.needs_conversion,
+                "validation_data": row.validation_data,
+                "feature_file": row.feature_file,
+                "project_id": row.project_id,
+                "error_message": row.error_message,
+                "metadata": row.metadata or "{}"
+            })
+
+
+@api.route("/uploaded-archives/<int:archive_id>", methods=["PUT"])
+def update_uploaded_archive(archive_id):
+    """Update an uploaded archive record."""
+    from morphocluster.models import uploaded_archives
+    import json
+
+    data = request.get_json()
+
+    update_data = {}
+    if "status" in data:
+        update_data["status"] = data["status"]
+    if "feature_file" in data:
+        update_data["feature_file"] = data["feature_file"]
+    if "project_id" in data:
+        update_data["project_id"] = data["project_id"]
+    if "error" in data:
+        update_data["error_message"] = data["error"]
+    if "metadata" in data:
+        # Handle metadata - if it's already a string, use it directly
+        # If it's an object, JSON encode it
+        metadata = data["metadata"]
+        if isinstance(metadata, str):
+            update_data["metadata"] = metadata
+        else:
+            update_data["metadata"] = json.dumps(metadata)
+    if "needs_conversion" in data:
+        update_data["needs_conversion"] = data["needs_conversion"]
+    if "filename" in data:
+        update_data["filename"] = data["filename"]
+
+    with database.engine.connect() as conn:
+        with conn.begin():
+            conn.execute(
+                uploaded_archives.update()
+                .where(uploaded_archives.c.id == archive_id)
+                .values(**update_data)
+            )
+
+            # Return updated archive
+            row = conn.execute(
+                uploaded_archives.select().where(uploaded_archives.c.id == archive_id)
+            ).fetchone()
+
+            if not row:
+                raise werkzeug.exceptions.NotFound("Archive not found")
+
+            return jsonify({
+                "id": row.id,
+                "filename": row.filename,
+                "original_filename": row.original_filename,
+                "file_size": row.file_size,
+                "upload_date": row.upload_date.isoformat() if row.upload_date else None,
+                "status": row.status,
+                "is_valid": row.is_valid,
+                "needs_conversion": row.needs_conversion,
+                "validation_data": row.validation_data,
+                "feature_file": row.feature_file,
+                "project_id": row.project_id,
+                "error_message": row.error_message,
+                "metadata": row.metadata or "{}"
+            })

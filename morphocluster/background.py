@@ -14,6 +14,52 @@ from morphocluster.processing.tree import Tree as ProcessingTree
 from morphocluster.tree import Tree
 
 
+class JobLogger:
+    """Logger for background jobs that stores logs in job metadata"""
+
+    def __init__(self, job):
+        self.job = job
+        # Initialize logs list if not exists
+        if "logs" not in self.job.meta:
+            self.job.meta["logs"] = []
+
+    def log(self, message, level="info"):
+        """Add a log entry with timestamp"""
+        log_entry = {
+            "timestamp": dt.datetime.now().isoformat(),
+            "level": level,
+            "message": str(message)
+        }
+
+        # Add to logs array
+        if "logs" not in self.job.meta:
+            self.job.meta["logs"] = []
+
+        self.job.meta["logs"].append(log_entry)
+
+        # Keep only last 50 logs to prevent metadata bloat
+        if len(self.job.meta["logs"]) > 50:
+            self.job.meta["logs"] = self.job.meta["logs"][-50:]
+
+        # Also print for console output
+        print(f"[{level.upper()}] {message}")
+
+        # Save metadata
+        self.job.save_meta()
+
+    def info(self, message):
+        self.log(message, "info")
+
+    def warning(self, message):
+        self.log(message, "warning")
+
+    def error(self, message):
+        self.log(message, "error")
+
+    def success(self, message):
+        self.log(message, "success")
+
+
 def validate_background_job(fun):
     return isinstance(getattr(fun, "helper", None), flask_rq2.functions.JobFunctions)
 
@@ -114,14 +160,15 @@ def extract_features_job(filename, parameters=None):
     """
     Background job for extracting features from uploaded archive using MorphoCluster's real feature extraction.
     """
-    print(f"Starting feature extraction for {filename}")
-
-    # Get current job for progress updates
     from rq import get_current_job
+    job = get_current_job()
+    logger = JobLogger(job)
+
+    logger.info(f"Starting feature extraction for {filename}")
+
+    # Import required modules
     from morphocluster.processing.extract_features import extract_features
     import zipfile
-
-    job = get_current_job()
 
     if parameters is None:
         parameters = {}
@@ -148,10 +195,12 @@ def extract_features_job(filename, parameters=None):
             job.meta["current_step"] = "Validating archive structure..."
             job.save_meta()
 
+            logger.info("Validating archive structure and contents")
+
             # Check if archive has index.csv
             with zipfile.ZipFile(archive_path, "r") as zip_file:
                 file_list = zip_file.namelist()
-                print(
+                logger.info(
                     f"Archive contents: {file_list[:10]}..."
                 )  # Show first 10 files for debugging
 
@@ -178,7 +227,7 @@ def extract_features_job(filename, parameters=None):
                 ]
                 total_images = len(image_files)
 
-            print(f"Archive validation passed. Found {total_images} images")
+            logger.success(f"Archive validation passed. Found {total_images} images")
 
             # Step 2: Setup parameters
             job.meta["progress"] = 10
@@ -209,10 +258,10 @@ def extract_features_job(filename, parameters=None):
             input_mean = parse_mean_std(parameters.get("input_mean"), (0, 0, 0))
             input_std = parse_mean_std(parameters.get("input_std"), (1, 1, 1))
 
-            print(
+            logger.info(
                 f"Using parameters: normalize={normalize}, batch_size={batch_size}, model_file={model_file}"
             )
-            print(f"Input normalization: mean={input_mean}, std={input_std}")
+            logger.info(f"Input normalization: mean={input_mean}, std={input_std}")
 
             # Step 3: Start feature extraction
             job.meta["progress"] = 15
@@ -254,12 +303,12 @@ def extract_features_job(filename, parameters=None):
             job.meta["result"] = result
             job.save_meta()
 
-            print(f"Feature extraction completed for {filename}")
-            print(f"Features saved to: {features_path}")
+            logger.success(f"Feature extraction completed for {filename}")
+            logger.info(f"Features saved to: {features_path}")
             return result
 
         except Exception as e:
-            print(f"Feature extraction failed: {str(e)}")
+            logger.error(f"Feature extraction failed: {str(e)}")
             job.meta["status"] = "failed"
             job.meta["error_message"] = str(e)
             job.meta["failed_at"] = dt.datetime.now().isoformat()
@@ -273,12 +322,12 @@ def convert_ecotaxa_job(filename, parameters=None):
     Background job for converting EcoTaxa format to standard format.
     Uses MorphoCluster's existing fix_ecotaxa functionality.
     """
-    print(f"Starting EcoTaxa conversion for {filename}")
-
     from rq import get_current_job
     import shutil
 
     job = get_current_job()
+    logger = JobLogger(job)
+    logger.info(f"Starting EcoTaxa conversion for {filename}")
 
     if parameters is None:
         parameters = {}
@@ -289,10 +338,16 @@ def convert_ecotaxa_job(filename, parameters=None):
     app_instance = create_app()
     with app_instance.app_context():
         try:
-            archive_path = Path(app_instance.config["FILES_DIR"]) / filename
+            # Always use the original file for conversion, not the _converted version
+            original_filename = filename
+            if filename.endswith('_converted.zip'):
+                original_filename = filename.replace('_converted.zip', '.zip')
+                logger.info(f"Converting from original file: {original_filename} instead of {filename}")
+
+            archive_path = Path(app_instance.config["FILES_DIR"]) / original_filename
 
             if not archive_path.exists():
-                raise FileNotFoundError(f"Archive {filename} not found")
+                raise FileNotFoundError(f"Original archive {original_filename} not found")
 
             # Step 1: Analyze parameters
             job.meta["status"] = "analyzing"
@@ -302,7 +357,13 @@ def convert_ecotaxa_job(filename, parameters=None):
 
             encoding = parameters.get("encoding")
             delimiter = parameters.get("delimiter")
-            force = parameters.get("force", False)
+            force = parameters.get("force_overwrite", parameters.get("force", False))
+
+            logger.info(f"Conversion parameters:")
+            logger.info(f"  encoding: {encoding}")
+            logger.info(f"  delimiter: {delimiter}")
+            logger.info(f"  force: {force}")
+            logger.info(f"  raw parameters: {parameters}")
 
             # Step 2: Create working copy for conversion
             job.meta["progress"] = 20
@@ -332,9 +393,53 @@ def convert_ecotaxa_job(filename, parameters=None):
                 if force:
                     args.append("--force")
 
+                logger.info(f"About to call fix_ecotaxa with:")
+                logger.info(f"  work_path: {work_path}")
+                logger.info(f"  work_path exists: {work_path.exists()}")
+                logger.info(f"  args: {args}")
+                logger.info(f"  encoding: {encoding}")
+                logger.info(f"  delimiter: {delimiter}")
+
+                # Debug: Check the actual file contents before conversion
+                try:
+                    import zipfile
+
+                    with zipfile.ZipFile(work_path, 'r') as zf:
+                        ecotaxa_files = [f for f in zf.namelist() if 'ecotaxa' in f.lower()]
+                        logger.info(f"  ecotaxa files in work zip: {ecotaxa_files}")
+
+                        if ecotaxa_files:
+                            with zf.open(ecotaxa_files[0]) as fp:
+                                first_line = fp.readline().decode(encoding or 'ascii').strip()
+                                logger.info(f"  first line: {repr(first_line)}")
+
+                                actual_delimiter = delimiter or '\t'
+                                columns = first_line.split(actual_delimiter)
+                                logger.info(f"  actual columns found: {columns}")
+                                logger.info(f"  number of columns: {len(columns)}")
+                                logger.info(f"  delimiter used: {repr(actual_delimiter)}")
+                                logger.info(f"  has object_id: {'object_id' in columns}")
+                                logger.info(f"  has img_file_name: {'img_file_name' in columns}")
+
+                                # Show each column individually for debugging
+                                for i, col in enumerate(columns):
+                                    logger.info(f"  column {i}: {repr(col)}")
+                except Exception as debug_error:
+                    logger.error(f"  debug file inspection failed: {debug_error}")
+
                 result = runner.invoke(fix_ecotaxa, args)
+
+                # Log full output for debugging
+                logger.info(f"fix_ecotaxa exit_code: {result.exit_code}")
+                logger.info(f"fix_ecotaxa output: {result.output}")
+                if result.exception:
+                    logger.error(f"fix_ecotaxa exception: {result.exception}")
+
                 if result.exit_code != 0:
-                    raise RuntimeError(f"EcoTaxa conversion failed: {result.output}")
+                    error_msg = f"EcoTaxa conversion failed (exit code {result.exit_code}): {result.output}"
+                    if result.exception:
+                        error_msg += f"\nException: {result.exception}"
+                    raise RuntimeError(error_msg)
             except Exception as conversion_error:
                 # Clean up working file
                 if work_path.exists():
@@ -395,11 +500,11 @@ def initial_clustering_job(archive_name, feature_file, parameters=None):
     """
     Background job for initial clustering to create a new MorphoCluster project.
     """
-    print(f"Starting initial clustering for {archive_name}")
-
     from rq import get_current_job
-
     job = get_current_job()
+    logger = JobLogger(job)
+
+    logger.info(f"Starting initial clustering for {archive_name}")
 
     if parameters is None:
         parameters = {}
@@ -648,14 +753,14 @@ def initial_clustering_job(archive_name, feature_file, parameters=None):
             job.meta["result"] = result
             job.save_meta()
 
-            print(f"Initial clustering completed for {archive_name}")
-            print(
+            logger.success(f"Initial clustering completed for {archive_name}")
+            logger.info(
                 f"Created project '{project_name}' with {cluster_count} clusters and {object_count} objects"
             )
             return result
 
         except Exception as e:
-            print(f"Initial clustering failed: {str(e)}")
+            logger.error(f"Initial clustering failed: {str(e)}")
             job.meta["status"] = "failed"
             job.meta["error_message"] = str(e)
             job.meta["failed_at"] = dt.datetime.now().isoformat()

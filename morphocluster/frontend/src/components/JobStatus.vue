@@ -1,13 +1,13 @@
 <template>
   <div class="job-status-container">
-    <div v-if="jobs.length === 0" class="no-jobs">
+    <div v-if="filteredJobs.length === 0" class="no-jobs">
       <i class="mdi mdi-briefcase-outline"></i>
-      <p>No active jobs</p>
+      <p>{{ filterStatus ? `No ${filterStatus} jobs` : 'No active jobs' }}</p>
     </div>
 
     <div v-else class="jobs-list">
       <div
-        v-for="job in jobs"
+        v-for="job in filteredJobs"
         :key="job.id"
         class="job-item"
         :class="{
@@ -134,9 +134,13 @@ export default {
     refreshInterval: {
       type: Number,
       default: 2000 // 2 seconds
+    },
+    filterStatus: {
+      type: String,
+      default: null // null means no filtering, show all jobs
     }
   },
-  emits: ['job-completed', 'job-failed', 'job-cancelled'],
+  emits: ['job-completed', 'job-failed', 'job-cancelled', 'jobs-updated'],
   data() {
     return {
       jobs: [],
@@ -147,6 +151,12 @@ export default {
     };
   },
   computed: {
+    filteredJobs() {
+      if (!this.filterStatus) {
+        return this.jobs; // Show all jobs if no filter
+      }
+      return this.jobs.filter(job => job.status === this.filterStatus);
+    },
     hasCompletedJobs() {
       return this.jobs.some(job => ['completed', 'failed'].includes(job.status));
     }
@@ -215,6 +225,7 @@ export default {
         });
 
         this.jobs = newJobs;
+        this.$emit('jobs-updated', this.jobs);
       } catch (error) {
         console.error('Failed to fetch jobs:', error);
       } finally {
@@ -298,12 +309,23 @@ export default {
     },
 
     getJobDetails(job) {
+      let archiveName = job.archive_name || job.parameters?.archive_name || 'Unknown';
+
+      // Remove file extensions and _converted suffix for display
+      if (archiveName !== 'Unknown') {
+        archiveName = archiveName.replace(/\.(zip|tar|tar\.gz)$/i, ''); // Remove file extensions
+        archiveName = archiveName.replace(/_converted$/, ''); // Remove _converted suffix
+      }
+
       if (job.job_type === 'format_conversion') {
-        return `Archive: ${job.archive_name || job.parameters?.archive_name || 'Unknown'}`;
+        return `Archive: ${archiveName}`;
       } else if (job.job_type === 'feature_extraction') {
-        return `Model: ${job.parameters?.model || 'ImageNet'}, Batch: ${job.parameters?.batch_size || 512}`;
-      } else if (job.job_type === 'initial_clustering' || job.job_type === 'reclustering') {
-        return `Min cluster size: ${job.parameters?.min_cluster_size || 128}`;
+        return `Archive: ${archiveName} • Model: ${job.parameters?.model || 'ImageNet'} • Batch: ${job.parameters?.batch_size || 512}`;
+      } else if (job.job_type === 'initial_clustering') {
+        return `Archive: ${archiveName} • Min cluster size: ${job.parameters?.min_cluster_size || 128}`;
+      } else if (job.job_type === 'reclustering') {
+        const projectName = job.parameters?.project_name || job.project_name || 'Unknown Project';
+        return `Project: ${projectName} • Min cluster size: ${job.parameters?.min_cluster_size || 128}`;
       }
       return '';
     },

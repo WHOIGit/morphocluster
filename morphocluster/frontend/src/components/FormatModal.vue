@@ -1,6 +1,6 @@
 <template>
   <b-modal
-    v-model="isVisible"
+    v-model="localVisible"
     title="Convert EcoTaxa Format"
     size="lg"
     @ok="handleConvert"
@@ -23,11 +23,11 @@
         <div class="info-grid">
           <div class="info-item">
             <strong>File:</strong>
-            <span>{{ archive?.name || 'Unknown' }}</span>
+            <span>{{ archive?.original_filename || 'Unknown' }}</span>
           </div>
           <div class="info-item">
             <strong>Size:</strong>
-            <span>{{ formatBytes(archive?.size || 0) }}</span>
+            <span>{{ formatBytes(archive?.file_size || 0) }}</span>
           </div>
           <div class="info-item" v-if="archive?.validation?.file_count">
             <strong>Files:</strong>
@@ -167,12 +167,15 @@ export default {
     archive: {
       type: Object,
       required: true
+    },
+    visible: {
+      type: Boolean,
+      default: true
     }
   },
   emits: ['convert', 'cancel'],
   data() {
     return {
-      isVisible: true,
       showAdvanced: false,
       parameters: {
         encoding: 'auto',
@@ -203,6 +206,16 @@ export default {
   computed: {
     isValid() {
       return this.parameters.encoding && this.parameters.delimiter;
+    },
+    localVisible: {
+      get() {
+        return this.visible;
+      },
+      set(value) {
+        if (!value) {
+          this.$emit('cancel');
+        }
+      }
     }
   },
   async mounted() {
@@ -216,6 +229,18 @@ export default {
     }
   },
   methods: {
+    getValidationData() {
+      // Extract validation data from archive
+      if (this.archive && this.archive.validation_data) {
+        try {
+          return JSON.parse(this.archive.validation_data);
+        } catch (error) {
+          console.warn('Failed to parse validation data:', error);
+          return null;
+        }
+      }
+      return null;
+    },
     async loadPreview() {
       if (!this.archive?.name) return;
       
@@ -279,7 +304,9 @@ export default {
         convertParams.encoding = this.previewData?.detected_encoding || 'utf-8';
       }
       if (convertParams.delimiter === 'auto') {
-        convertParams.delimiter = this.previewData?.detected_delimiter || ',';
+        // Try to get delimiter from validation data first, then preview data, then default to comma
+        const validationData = this.getValidationData();
+        convertParams.delimiter = validationData?.detected_delimiter || this.previewData?.detected_delimiter || ',';
       }
 
       // Convert string booleans to actual booleans
@@ -287,12 +314,10 @@ export default {
       convertParams.skip_image_validation = convertParams.skip_image_validation === 'true' || convertParams.skip_image_validation === true;
 
       this.$emit('convert', convertParams);
-      this.isVisible = false;
     },
 
     handleCancel() {
       this.$emit('cancel');
-      this.isVisible = false;
     },
 
     formatBytes(bytes) {

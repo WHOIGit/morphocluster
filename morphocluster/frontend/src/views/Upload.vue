@@ -13,6 +13,9 @@
           <li class="navbar-item">
             <span class="nav-link active">Upload</span>
           </li>
+          <li class="navbar-item">
+            <router-link class="nav-link" :to="{ name: 'jobs' }">Jobs</router-link>
+          </li>
         </ul>
       </div>
       <dark-mode-control />
@@ -49,12 +52,12 @@
                     v-for="archive in uploadedArchives"
                     :key="archive.id"
                     class="archive-item"
-                    :class="{ 'needs-conversion': archive.needsConversion }"
+                    :class="{ 'needs-conversion': archive.needs_conversion }"
                   >
                     <div class="archive-header">
                       <div class="archive-info">
-                        <h6>{{ archive.name }}</h6>
-                        <small class="text-muted">{{ formatBytes(archive.size) }}</small>
+                        <h6>{{ archive.original_filename || archive.filename || 'Unknown' }}</h6>
+                        <small class="text-muted">{{ formatBytes(archive.file_size) || 'Size unknown' }}</small>
                       </div>
                       <div class="archive-status">
                         <b-badge
@@ -63,14 +66,14 @@
                         >
                           {{ getArchiveStatusText(archive.status) }}
                         </b-badge>
-                        <span v-if="archive.format" class="format-badge">
-                          {{ archive.format }}
+                        <span v-if="getArchiveFormat(archive)" class="format-badge">
+                          {{ getArchiveFormat(archive) }}
                         </span>
                       </div>
                     </div>
 
                     <!-- EcoTaxa Conversion Warning -->
-                    <div v-if="archive.needsConversion" class="alert alert-warning mt-2">
+                    <div v-if="archive.needs_conversion" class="alert alert-warning mt-2">
                       <i class="mdi mdi-alert"></i>
                       This archive appears to be in EcoTaxa format and needs conversion.
                       <button
@@ -90,11 +93,11 @@
                     >
                       <i class="mdi mdi-alert-circle"></i>
                       <strong>Validation Error:</strong><br>
-                      {{ archive.error || 'Unknown error occurred during validation' }}
-                      <div v-if="archive.validation && archive.validation.validation_warnings && archive.validation.validation_warnings.length" class="mt-2">
+                      {{ archive.error_message || 'Unknown error occurred during validation' }}
+                      <div v-if="getValidationData(archive)?.validation_warnings?.length" class="mt-2">
                         <small><strong>Warnings:</strong></small>
                         <ul class="mb-0 mt-1">
-                          <li v-for="warning in archive.validation.validation_warnings" :key="warning">
+                          <li v-for="warning in getValidationData(archive).validation_warnings" :key="warning">
                             {{ warning }}
                           </li>
                         </ul>
@@ -155,7 +158,7 @@
                         View Project
                       </b-button>
                       <span class="project-info text-muted">
-                        Project: {{ archive.projectName || 'Unknown' }}
+                        Project: {{ getProjectName(archive) || 'Unknown' }}
                       </span>
                     </div>
                   </div>
@@ -254,6 +257,7 @@ import DarkModeControl from '@/components/DarkModeControl.vue';
 import FormatModal from '@/components/FormatModal.vue';
 import FeatureModal from '@/components/FeatureModal.vue';
 import ClusterModal from '@/components/ClusterModal.vue';
+import { getUploadedArchives, saveUploadedArchive, updateUploadedArchive } from '@/helpers/api';
 
 export default {
   name: 'UploadView',
@@ -276,8 +280,20 @@ export default {
       showingExtractModal: false,
       showingClusterModal: false,
       showingPreviewModal: false,
-      previewData: null
+      previewData: null,
+      processedJobIds: new Set() // Track processed job IDs to prevent duplicates
     };
+  },
+  async mounted() {
+    // Load persisted archives on component mount
+    try {
+      const persistedArchives = await getUploadedArchives();
+      this.uploadedArchives = persistedArchives;
+
+    } catch (error) {
+      console.error('Failed to load persisted archives:', error);
+      // Keep empty array as fallback
+    }
   },
   methods: {
     handleUploadStart(files) {
@@ -313,37 +329,46 @@ export default {
           console.log('Validation result:', validation.data);
 
           const archiveData = {
-            id: Date.now() + Math.random(),
-            name: file.name,
-            size: file.size,
+            filename: file.name,
+            original_filename: file.name,
+            file_size: file.size,
             status: 'ready',
-            format: validation.data.format,
-            needsConversion: validation.data.needs_conversion,
-            isValid: validation.data.is_valid,
-            validation: validation.data
+            is_valid: validation.data.is_valid,
+            needs_conversion: validation.data.needs_conversion,
+            validation_data: JSON.stringify(validation.data),
+            metadata: JSON.stringify({
+              format: validation.data.format
+            })
           };
 
-          this.uploadedArchives.push(archiveData);
+          // Save to backend and get the persisted record
+          console.log('Saving archive to backend:', archiveData);
+          const savedArchive = await saveUploadedArchive(archiveData);
+          console.log('Saved archive response:', savedArchive);
+          this.uploadedArchives.push(savedArchive);
         } catch (error) {
           console.error('Validation failed for', file.name, ':', error);
-          this.uploadedArchives.push({
-            id: Date.now() + Math.random(),
-            name: file.name,
-            size: file.size,
+          const errorArchive = {
+            filename: file.name,
+            original_filename: file.name,
+            file_size: file.size,
             status: 'error',
-            error: error.response?.data?.error || error.message
-          });
+            is_valid: false,
+            needs_conversion: false,
+            error_message: error.response?.data?.error || error.message
+          };
+
+          console.log('Saving error archive to backend:', errorArchive);
+          const savedArchive = await saveUploadedArchive(errorArchive);
+          console.log('Saved error archive response:', savedArchive);
+          this.uploadedArchives.push(savedArchive);
         }
       }
     },
 
     handleUploadError(error) {
       console.error('Upload error:', error);
-      this.$bvToast.toast('Upload failed. Please try again.', {
-        title: 'Upload Error',
-        variant: 'danger',
-        solid: true
-      });
+      alert('Upload failed. Please try again: ' + error.message);
     },
 
     handleUploadCancel() {
@@ -391,17 +416,17 @@ export default {
       this.selectedArchive = null;
     },
     viewProject(archive) {
-      if (archive.projectId) {
+      if (archive.project_id) {
         // Navigate to the project view
-        this.$router.push(`/projects/${archive.projectId}`);
+        this.$router.push(`/p/${archive.project_id}`);
       } else {
-        console.error('No project ID available for archive:', archive.name);
+        console.error('No project ID available for archive:', archive.original_filename);
       }
     },
 
     async previewArchive(archive) {
       try {
-        const response = await this.$axios.get(`/api/files/${archive.name}/preview`);
+        const response = await this.$axios.get(`/api/files/${archive.filename}/preview`);
         this.previewData = response.data;
         this.showingPreviewModal = true;
       } catch (error) {
@@ -424,15 +449,21 @@ export default {
       }
 
       try {
+        console.log('Converting archive:', {
+          filename: archive.filename,
+          original_filename: archive.original_filename,
+          full_archive_object: archive
+        });
+
         await this.$axios.post(
-          `/api/files/${archive.name}/convert`,
+          `/api/files/${archive.filename}/convert`,
           parameters
         );
 
-        console.log('Format conversion started for:', archive.name);
+        console.log('Format conversion started for:', archive.original_filename);
 
         // Update archive status
-        archive.status = 'converting';
+        await this.updateArchive(archive, { status: 'converting' });
 
       } catch (error) {
         console.error('Conversion failed:', error);
@@ -451,14 +482,12 @@ export default {
 
       try {
         await this.$axios.post(
-          `/api/files/${archive.name}/extract`,
+          `/api/files/${archive.filename}/extract`,
           parameters
         );
 
-        console.log('Feature extraction started for:', archive.name);
-
         // Update archive status
-        archive.status = 'extracting';
+        await this.updateArchive(archive, { status: 'extracting' });
 
       } catch (error) {
         console.error('Extraction failed:', error);
@@ -477,53 +506,98 @@ export default {
 
       try {
         await this.$axios.post(
-          `/api/files/${encodeURIComponent(archive.name)}/cluster`,
-          { ...parameters, feature_file: archive.featureFile }
+          `/api/files/${encodeURIComponent(archive.filename)}/cluster`,
+          parameters
         );
 
-        console.log('Clustering started for:', archive.name);
 
         // Update archive status
-        archive.status = 'clustering';
+        await this.updateArchive(archive, { status: 'clustering' });
 
       } catch (error) {
         console.error('Clustering failed:', error);
-        console.error('Error details:', error.response?.data);
       }
     },
 
-    handleJobCompleted(job) {
+    async handleJobCompleted(job) {
+      // Check if this job has already been processed to prevent duplicates
+      if (this.processedJobIds.has(job.id)) {
+        return;
+      }
+
+      // Mark job as processed
+      this.processedJobIds.add(job.id);
+
+      // Helper function to find archive with flexible name matching
+      const findArchive = (archiveName) => {
+        if (!archiveName) return null;
+
+        const nameWithZip = archiveName.endsWith('.zip') ? archiveName : archiveName + '.zip';
+        const nameWithoutZip = archiveName.replace(/\.zip$/, '');
+
+        return this.uploadedArchives.find(a =>
+          a.filename === archiveName ||
+          a.original_filename === archiveName ||
+          a.filename === nameWithZip ||
+          a.original_filename === nameWithZip ||
+          a.filename === nameWithoutZip ||
+          a.original_filename === nameWithoutZip
+        );
+      };
+
       // Update archive status based on job type
       if (job.job_type === 'format_conversion' && job.archive_name) {
-        const archive = this.uploadedArchives.find(a => a.name === job.archive_name);
-        if (archive) {
-          archive.status = 'ready';
-          archive.format = 'standard';
-          archive.needsConversion = false;
+        const archive = findArchive(job.archive_name);
+        if (archive && !archive.project_id) { // Don't update if project already exists
+          const updates = {
+            status: 'ready',
+            needs_conversion: false,
+            metadata: JSON.stringify({
+              ...this.parseMetadata(archive),
+              format: 'standard'
+            })
+          };
 
           // Update archive name to point to converted file
           if (job.result && job.result.converted_file) {
-            archive.name = job.result.converted_file;
+            updates.filename = job.result.converted_file;
           }
+
+          await this.updateArchive(archive, updates);
         }
       } else if (job.job_type === 'feature_extraction' && job.archive_name) {
-        const archive = this.uploadedArchives.find(a => a.name === job.archive_name);
-        if (archive) {
-          archive.status = 'processed';
+        const archive = findArchive(job.archive_name);
+        if (archive && !archive.project_id) { // Don't update if project already exists
+          const updates = {
+            status: 'processed'
+          };
+
           // Store feature file info for clustering
           if (job.result && job.result.feature_file) {
-            archive.featureFile = job.result.feature_file;
+            updates.feature_file = job.result.feature_file;
           }
+
+          await this.updateArchive(archive, updates);
         }
       } else if (job.job_type === 'initial_clustering' && job.archive_name) {
-        const archive = this.uploadedArchives.find(a => a.name === job.archive_name);
+        const archive = findArchive(job.archive_name);
         if (archive) {
-          archive.status = 'clustered';
+          const updates = {
+            status: 'clustered'
+          };
+
           // Store project info
           if (job.result && job.result.project_id) {
-            archive.projectId = job.result.project_id;
-            archive.projectName = job.result.project_name;
+            updates.project_id = job.result.project_id;
+            // Create clean metadata object
+            const cleanMetadata = {
+              format: 'standard',
+              project_name: job.result.project_name
+            };
+            updates.metadata = JSON.stringify(cleanMetadata);
           }
+
+          await this.updateArchive(archive, updates);
         }
       }
 
@@ -533,18 +607,63 @@ export default {
       }
     },
 
-    handleJobFailed(job) {
+    async handleJobFailed(job) {
+      // Helper function to find archive (same as in handleJobCompleted)
+      const findArchive = (archiveName) => {
+        if (!archiveName) return null;
+
+        const nameWithZip = archiveName.endsWith('.zip') ? archiveName : archiveName + '.zip';
+        const nameWithoutZip = archiveName.replace(/\.zip$/, '');
+
+        return this.uploadedArchives.find(a =>
+          a.filename === archiveName ||
+          a.original_filename === archiveName ||
+          a.filename === nameWithZip ||
+          a.original_filename === nameWithZip ||
+          a.filename === nameWithoutZip ||
+          a.original_filename === nameWithoutZip
+        );
+      };
+
       // Reset archive status if conversion failed
       if (job.job_type === 'format_conversion' && job.archive_name) {
-        const archive = this.uploadedArchives.find(a => a.name === job.archive_name);
+        const archive = findArchive(job.archive_name);
         if (archive) {
-          archive.status = 'ready'; // Back to ready so user can try again
+          await this.updateArchive(archive, {
+            status: 'ready', // Back to ready so user can try again
+            error_message: job.error_message
+          });
         }
       }
     },
 
     handleJobCancelled() {
       // Job was cancelled, no specific action needed
+    },
+
+    async updateArchive(archive, updates) {
+      try {
+        console.log('updateArchive: calling API with id:', archive.id, 'updates:', updates);
+        const updatedArchive = await updateUploadedArchive(archive.id, updates);
+        console.log('updateArchive: API response:', updatedArchive);
+        // Update local copy with server response
+        Object.assign(archive, updatedArchive);
+        console.log('updateArchive: local object after assign:', {
+          needs_conversion: archive.needs_conversion,
+          status: archive.status,
+          filename: archive.filename
+        });
+      } catch (error) {
+        console.error('Failed to update archive:', error);
+        console.log('updateArchive: using fallback, applying updates locally:', updates);
+        // Fallback: apply updates locally only
+        Object.assign(archive, updates);
+        console.log('updateArchive: local object after fallback:', {
+          needs_conversion: archive.needs_conversion,
+          status: archive.status,
+          filename: archive.filename
+        });
+      }
     },
 
     getJobTitle(job) {
@@ -558,7 +677,47 @@ export default {
     },
 
     isArchiveValid(archive) {
-      return archive.status === 'ready' && archive.isValid;
+      return archive.status === 'ready' && archive.is_valid;
+    },
+
+    getArchiveFormat(archive) {
+      try {
+        const metadata = JSON.parse(archive.metadata || '{}');
+        return metadata.format;
+      } catch {
+        return null;
+      }
+    },
+
+    getValidationData(archive) {
+      try {
+        return JSON.parse(archive.validation_data || '{}');
+      } catch {
+        return {};
+      }
+    },
+
+    getProjectName(archive) {
+      try {
+        const metadata = JSON.parse(archive.metadata || '{}');
+        return metadata.project_name;
+      } catch {
+        return null;
+      }
+    },
+
+    parseMetadata(archive) {
+      try {
+        const metadataStr = archive.metadata || '{}';
+        return JSON.parse(metadataStr);
+      } catch (error) {
+        console.warn('Failed to parse archive metadata:', error, 'Raw metadata:', archive.metadata);
+        // If parsing fails, try to handle common cases
+        if (typeof archive.metadata === 'object') {
+          return archive.metadata; // Already an object
+        }
+        return {}; // Fallback to empty object
+      }
     },
 
     getArchiveStatusVariant(status) {
@@ -592,7 +751,12 @@ export default {
     },
 
     formatBytes(bytes) {
+      // Handle invalid input
+      if (bytes === null || bytes === undefined || isNaN(bytes)) {
+        return null; // This will trigger the fallback in the template
+      }
       if (bytes === 0) return '0 Bytes';
+
       const k = 1024;
       const sizes = ['Bytes', 'KB', 'MB', 'GB'];
       const i = Math.floor(Math.log(bytes) / Math.log(k));
@@ -611,7 +775,7 @@ export default {
 
 .upload-container {
   flex: 1;
-  padding: 2rem 0;
+  padding: 2rem 0 4rem 0;
   background-color: #f8f9fa;
 }
 
@@ -644,15 +808,32 @@ export default {
   flex-shrink: 0;
 }
 
-.job-status-section .job-status-container {
+/* Make the JobStatus component scrollable */
+.job-status-section >>> .job-status-container {
   flex: 1;
   min-height: 0;
+  overflow-y: auto;
+  max-height: calc(100vh - 8rem);
+}
+
+/* Also target the jobs list directly */
+.job-status-section >>> .jobs-list {
+  max-height: calc(100vh - 8rem);
+  overflow-y: auto;
+}
+
+.job-status-section >>> .job-item {
+  flex-shrink: 0;
 }
 
 .archives-list {
   border: 1px solid #dee2e6;
   border-radius: 8px;
   background: white;
+  max-height: 40vh;
+  overflow-y: auto;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
 }
 
 .archive-item {

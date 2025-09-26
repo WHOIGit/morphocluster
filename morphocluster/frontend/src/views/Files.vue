@@ -13,6 +13,9 @@
                     <li class="navbar-item">
                         <router-link class="nav-link" :to="{ name: 'upload' }">Upload</router-link>
                     </li>
+                    <li class="navbar-item">
+                        <router-link class="nav-link" :to="{ name: 'jobs' }">Jobs</router-link>
+                    </li>
                     <li v-for="(parent, index) in entry && entry.parents ? entry.parents.slice() : []" :key="index" class="navbar-item">
                         <router-link class="nav-link" :to="{ name: 'files', params: { file_path: parent.path } }">{{
                             parent.name

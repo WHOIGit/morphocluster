@@ -204,3 +204,22 @@ export function cancelJob(jobId) {
     return axios.delete(`/api/jobs/${jobId}`)
         .then(response => response.data);
 }
+
+// ===============================================================================
+// Uploaded Archives Management
+// ===============================================================================
+
+export function getUploadedArchives() {
+    return axios.get('/api/uploaded-archives')
+        .then(response => response.data);
+}
+
+export function saveUploadedArchive(archiveData) {
+    return axios.post('/api/uploaded-archives', archiveData)
+        .then(response => response.data);
+}
+
+export function updateUploadedArchive(archiveId, updates) {
+    return axios.put(`/api/uploaded-archives/${archiveId}`, updates)
+        .then(response => response.data);
+}

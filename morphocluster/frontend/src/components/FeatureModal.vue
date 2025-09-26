@@ -23,7 +23,7 @@
         <div class="info-grid">
           <div class="info-item">
             <strong>Archive:</strong>
-            <span>{{ archive?.name || 'Unknown' }}</span>
+            <span>{{ archive?.original_filename || 'Unknown' }}</span>
           </div>
           <div class="info-item" v-if="archive?.validation?.image_count">
             <strong>Images:</strong>

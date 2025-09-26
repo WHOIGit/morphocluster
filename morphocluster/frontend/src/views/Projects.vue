@@ -12,6 +12,9 @@
                 <li class="nav-item">
                     <router-link class="nav-link" :to="{ name: 'upload' }">Upload</router-link>
                 </li>
+                <li class="nav-item">
+                    <router-link class="nav-link" :to="{ name: 'jobs' }">Jobs</router-link>
+                </li>
             </ul>
             <dark-mode-control />
         </nav>

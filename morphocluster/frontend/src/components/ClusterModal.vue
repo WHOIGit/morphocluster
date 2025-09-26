@@ -25,7 +25,7 @@
         <div class="info-grid">
           <div v-if="!isReclusterMode" class="info-item">
             <strong>Archive:</strong>
-            <span>{{ archive?.name || 'Unknown' }}</span>
+            <span>{{ archive?.original_filename || 'Unknown' }}</span>
           </div>
           <div v-if="isReclusterMode" class="info-item">
             <strong>Original Project:</strong>
@@ -322,9 +322,9 @@ export default {
 
       // Set project name with new cluster size
       this.parameters.project_name = `${this.project.name} (${this.parameters.min_cluster_size})`;
-    } else if (this.archive?.name) {
+    } else if (this.archive?.original_filename) {
       // For initial clustering, set default project name based on archive name
-      const baseName = this.archive.name.replace(/\.(zip|tar|tar\.gz)$/i, '');
+      const baseName = this.archive.original_filename.replace(/\.(zip|tar|tar\.gz)$/i, '');
       this.parameters.project_name = baseName.replace(/_/g, ' ');
     }
   },
