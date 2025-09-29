@@ -172,6 +172,7 @@
             <div class="job-status-section">
               <h4>Processing Jobs</h4>
               <job-status
+                ref="jobStatus"
                 @job-completed="handleJobCompleted"
                 @job-failed="handleJobFailed"
                 @job-cancelled="handleJobCancelled"
@@ -465,6 +466,9 @@ export default {
         // Update archive status
         await this.updateArchive(archive, { status: 'converting' });
 
+        // Immediately refresh job list to show the new job
+        this.$refs.jobStatus?.fetchJobs();
+
       } catch (error) {
         console.error('Conversion failed:', error);
         console.error('Error details:', error.response?.data);
@@ -489,6 +493,9 @@ export default {
         // Update archive status
         await this.updateArchive(archive, { status: 'extracting' });
 
+        // Immediately refresh job list to show the new job
+        this.$refs.jobStatus?.fetchJobs();
+
       } catch (error) {
         console.error('Extraction failed:', error);
         console.error('Error details:', error.response?.data);
@@ -510,9 +517,11 @@ export default {
           parameters
         );
 
-
         // Update archive status
         await this.updateArchive(archive, { status: 'clustering' });
+
+        // Immediately refresh job list to show the new job
+        this.$refs.jobStatus?.fetchJobs();
 
       } catch (error) {
         console.error('Clustering failed:', error);

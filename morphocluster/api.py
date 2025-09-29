@@ -828,6 +828,15 @@ def get_user_jobs():
                 if job_data:
                     all_jobs.append(job_data)
 
+            # Running jobs (currently being executed)
+            started_registry = queue.started_job_registry
+            for job_id in started_registry.get_job_ids(0, 20):
+                job = queue.fetch_job(job_id)
+                if job:
+                    job_data = _format_job_data(job)
+                    if job_data:
+                        all_jobs.append(job_data)
+
             # Recently finished jobs
             finished_registry = queue.finished_job_registry
             for job_id in finished_registry.get_job_ids(0, 20):
@@ -865,17 +874,23 @@ def _format_job_data(job):
         if not job:
             return None
 
-        # Determine job status
-        if job.is_queued:
-            status = "queued"
-        elif job.is_started:
-            status = job.meta.get("status", "running")
-        elif job.is_finished:
-            status = job.meta.get("status", "completed")
-        elif job.is_failed:
+        # Determine job status based on RQ job state
+        # Priority: RQ's built-in states take precedence over meta status
+        if job.is_failed:
             status = "failed"
+        elif job.is_finished:
+            status = "completed"
+        elif job.is_started:
+            # Job is actively running - always show "running" status
+            status = "running"
+        elif job.is_queued:
+            status = "queued"
         else:
-            status = "unknown"
+            # Fallback for edge cases
+            if job.started_at:
+                status = "running"
+            else:
+                status = "queued"
 
         job_data = {
             "id": job.id,

@@ -190,7 +190,6 @@ def extract_features_job(filename, parameters=None):
             features_path = archive_path.parent / features_filename
 
             # Step 1: Validate archive
-            job.meta["status"] = "validating"
             job.meta["progress"] = 5
             job.meta["current_step"] = "Validating archive structure..."
             job.save_meta()
@@ -263,13 +262,22 @@ def extract_features_job(filename, parameters=None):
             )
             logger.info(f"Input normalization: mean={input_mean}, std={input_std}")
 
-            # Step 3: Start feature extraction
+            # Step 3: Start feature extraction with progress tracking
             job.meta["progress"] = 15
             job.meta["current_step"] = (
                 "Starting feature extraction (this may take several minutes)..."
             )
             job.meta["total_images"] = total_images
             job.save_meta()
+
+            # Define progress callback for feature extraction
+            def update_extraction_progress(current_batch, total_batches):
+                """Update job progress during feature extraction"""
+                # Map from 15% to 95% based on batch progress
+                progress = 15 + int((current_batch / total_batches) * 80)
+                job.meta["progress"] = progress
+                job.meta["current_step"] = f"Extracting features: batch {current_batch}/{total_batches}"
+                job.save_meta()
 
             # Run MorphoCluster's real feature extraction
             extract_features(
@@ -281,6 +289,7 @@ def extract_features_job(filename, parameters=None):
                 cuda=True,  # Use GPU if available
                 input_mean=input_mean,
                 input_std=input_std,
+                progress_callback=update_extraction_progress,
             )
 
             # Step 4: Complete
@@ -327,6 +336,7 @@ def convert_ecotaxa_job(filename, parameters=None):
 
     job = get_current_job()
     logger = JobLogger(job)
+
     logger.info(f"Starting EcoTaxa conversion for {filename}")
 
     if parameters is None:
@@ -350,7 +360,6 @@ def convert_ecotaxa_job(filename, parameters=None):
                 raise FileNotFoundError(f"Original archive {original_filename} not found")
 
             # Step 1: Analyze parameters
-            job.meta["status"] = "analyzing"
             job.meta["progress"] = 10
             job.meta["current_step"] = "Analyzing EcoTaxa format and parameters..."
             job.save_meta()
@@ -525,7 +534,6 @@ def initial_clustering_job(archive_name, feature_file, parameters=None):
                 raise FileNotFoundError(f"Feature file {feature_file} not found")
 
             # Step 1: Setup parameters
-            job.meta["status"] = "setting_up"
             job.meta["progress"] = 10
             job.meta["current_step"] = "Setting up clustering parameters..."
             job.save_meta()
@@ -777,6 +785,8 @@ def reclustering_job(project_id, parameters=None):
     from rq import get_current_job
 
     job = get_current_job()
+    logger = JobLogger(job)
+
     if parameters is None:
         parameters = {}
 
@@ -795,7 +805,6 @@ def reclustering_job(project_id, parameters=None):
             import h5py
 
             # Step 1: Setup parameters
-            job.meta["status"] = "setting_up"
             job.meta["progress"] = 10
             job.meta["current_step"] = "Setting up re-clustering parameters..."
             job.save_meta()

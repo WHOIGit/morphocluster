@@ -387,6 +387,7 @@ def extract_features(
     cuda=True,
     input_mean=(0, 0, 0),
     input_std=(1, 1, 1),
+    progress_callback=None,
 ):
     use_cuda = cuda and torch.cuda.is_available()
 
@@ -462,6 +463,9 @@ def extract_features(
         h5_targets = f_features.create_dataset("targets", (n_objects,), dtype="int8")
 
         offset = 0
+        total_batches = len(data_loader)
+        batch_num = 0
+
         for objids, inputs in tqdm(data_loader, unit="batch"):
             if use_cuda:
                 inputs = inputs.cuda(non_blocking=True)
@@ -482,5 +486,10 @@ def extract_features(
             h5_targets[offset : offset + batch_size] = -1
 
             offset += batch_size
+            batch_num += 1
+
+            # Call progress callback if provided
+            if progress_callback:
+                progress_callback(batch_num, total_batches)
 
     print("Done.")
