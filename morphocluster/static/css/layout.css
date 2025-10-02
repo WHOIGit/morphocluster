@@ -94,3 +94,143 @@ The below snippet of CSS must be included into your project. Future release may 
     top: 3px;
     left: -3px
 }
+
+/* Dark Mode Support */
+:root {
+	--bg-primary: #ffffff;
+	--bg-secondary: #f8f9fa;
+	--bg-tertiary: #e9ecef;
+	--text-primary: #212529;
+	--text-secondary: #6c757d;
+	--border-color: #dee2e6;
+	--card-bg: #ffffff;
+	--card-border: #dee2e6;
+}
+
+:root.dark-mode {
+	--bg-primary: #1a1a1a;
+	--bg-secondary: #2d2d2d;
+	--bg-tertiary: #3a3a3a;
+	--text-primary: #e9ecef;
+	--text-secondary: #adb5bd;
+	--border-color: #495057;
+	--card-bg: #2d2d2d;
+	--card-border: #495057;
+}
+
+body {
+	background-color: var(--bg-primary);
+	color: var(--text-primary);
+	transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Navbar elements should stay light colored */
+.navbar .text-light,
+.navbar a.text-light,
+#nav-info {
+	color: #ffffff !important;
+}
+
+.bg-light {
+	background-color: var(--bg-secondary) !important;
+	color: var(--text-primary) !important;
+}
+
+.card {
+	background-color: var(--card-bg) !important;
+	border-color: var(--card-border) !important;
+	color: var(--text-primary) !important;
+}
+
+.member {
+	background-color: var(--card-bg) !important;
+	border-color: var(--card-border) !important;
+	color: var(--text-primary) !important;
+}
+
+.form-control {
+	background-color: var(--card-bg) !important;
+	border-color: var(--border-color) !important;
+	color: var(--text-primary) !important;
+}
+
+.btn-secondary {
+	background-color: var(--bg-tertiary) !important;
+	border-color: var(--border-color) !important;
+	color: var(--text-primary) !important;
+}
+
+:root.dark-mode .btn-secondary:hover {
+	background-color: #4a4a4a !important;
+}
+
+/* Navbar should always be dark */
+#navbar.bg-dark {
+	background-color: #343a40 !important;
+}
+
+:root.dark-mode #navbar.bg-dark {
+	background-color: #0d0d0d !important;
+}
+
+/* Dark mode toggle button - always visible */
+#dark-mode-toggle {
+	display: flex !important;
+	align-items: center;
+	margin-left: 1rem;
+	background: none !important;
+	border: none !important;
+	cursor: pointer !important;
+	padding: 0.25rem 0.5rem !important;
+	visibility: visible !important;
+	opacity: 1 !important;
+}
+
+#dark-mode-toggle i {
+	color: #ffffff !important;
+	font-size: 1.5rem !important;
+}
+
+#dark-mode-toggle:hover {
+	opacity: 0.8 !important;
+	transform: scale(1.1);
+}
+
+.navbar-logo {
+	transition: filter 0.3s ease;
+}
+
+/* Expert Mode - Add color to primary action buttons */
+#btn-approve {
+	background-color: #28a745 !important;
+	border-color: #28a745 !important;
+	color: #ffffff !important;
+}
+
+#btn-approve:hover {
+	background-color: #218838 !important;
+	border-color: #1e7e34 !important;
+}
+
+#btn-recommend {
+	background-color: #ffc107 !important;
+	border-color: #ffc107 !important;
+	color: #212529 !important;
+}
+
+#btn-recommend:hover {
+	background-color: #e0a800 !important;
+	border-color: #d39e00 !important;
+}
+
+:root.dark-mode #btn-approve {
+	background-color: #28a745 !important;
+	border-color: #28a745 !important;
+	color: #ffffff !important;
+}
+
+:root.dark-mode #btn-recommend {
+	background-color: #ffc107 !important;
+	border-color: #ffc107 !important;
+	color: #212529 !important;
+}

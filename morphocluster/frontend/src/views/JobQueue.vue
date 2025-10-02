@@ -1,7 +1,10 @@
 <template>
   <div id="job-queue">
     <nav class="navbar navbar-expand-lg navbar navbar-dark bg-dark">
-      <router-link class="navbar-brand" :to="{ name: 'projects' }">MorphoCluster</router-link>
+      <router-link class="navbar-brand" :to="{ name: 'projects' }">
+        <img src="/frontend/favicon.png" alt="MorphoCluster" class="navbar-logo" />
+        MorphoCluster
+      </router-link>
       <ul class="navbar-nav me-auto">
         <li class="nav-item">
           <router-link class="nav-link" :to="{ name: 'projects' }">Projects</router-link>
@@ -285,13 +288,13 @@ export default {
 
 .job-queue-header {
   padding: 1.5rem 0 1rem;
-  border-bottom: 1px solid #dee2e6;
+  border-bottom: 1px solid var(--border-color);
   margin-bottom: 1.5rem;
 }
 
 .job-queue-header h2 {
   margin-bottom: 0.5rem;
-  color: #495057;
+  color: var(--text-primary);
 }
 
 .job-queue-header h2 i {
@@ -299,7 +302,7 @@ export default {
 }
 
 .section-description {
-  color: #6c757d;
+  color: var(--text-secondary);
   margin-bottom: 0;
 }
 
@@ -319,8 +322,9 @@ export default {
   padding: 1rem;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  background: white;
+  background: var(--card-bg);
   border-left: 4px solid transparent;
+  color: var(--text-primary);
 }
 
 .stat-running {
@@ -373,7 +377,7 @@ export default {
 
 .stat-label {
   font-size: 0.875rem;
-  color: #6c757d;
+  color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -384,7 +388,7 @@ export default {
   justify-content: space-between;
   align-items: center;
   padding: 1rem;
-  background: #f8f9fa;
+  background: var(--bg-secondary);
   border-radius: 8px;
   flex-wrap: wrap;
   gap: 1rem;
@@ -403,7 +407,7 @@ export default {
 
 /* Jobs Container */
 .jobs-container {
-  background: white;
+  background: var(--card-bg);
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   padding: 1rem;

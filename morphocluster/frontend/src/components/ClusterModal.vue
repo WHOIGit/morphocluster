@@ -374,9 +374,10 @@ export default {
   overflow-y: auto;
 }
 
-.archive-info {
-  background: #f8f9fa;
-  border: 1px solid #dee2e6;
+.archive-info,
+.source-info {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
   border-radius: 6px;
   padding: 1rem;
 }
@@ -392,16 +393,28 @@ export default {
   justify-content: space-between;
   align-items: center;
   padding: 0.25rem 0;
+  color: var(--text-primary);
 }
 
 .info-item strong {
   margin-right: 0.5rem;
+  color: var(--text-primary);
 }
 
 .clustering-params .card-header,
 .advanced-options .card-header {
-  background-color: #f8f9fa;
-  border-bottom: 1px solid #dee2e6;
+  background-color: var(--bg-secondary) !important;
+  border-bottom: 1px solid var(--border-color) !important;
+}
+
+.clustering-params .card-header h6,
+.advanced-options .card-header h6 {
+  color: var(--text-primary) !important;
+}
+
+.clustering-params .card-body,
+.advanced-options .card-body {
+  background-color: var(--card-bg) !important;
 }
 
 .cluster-size-presets {
@@ -413,6 +426,14 @@ export default {
 
 .estimation-info {
   margin-top: 1rem;
+}
+
+/* Form descriptions should use secondary text color */
+:deep(.form-group small),
+:deep(.form-text),
+:deep(.invalid-feedback),
+:deep(.form-group .text-muted) {
+  color: var(--text-secondary) !important;
 }
 
 @media (max-width: 768px) {

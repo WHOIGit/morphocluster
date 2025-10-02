@@ -1,7 +1,10 @@
 <template>
     <div id="files">
         <nav class="navbar navbar-expand-lg navbar navbar-dark bg-dark">
-            <router-link class="navbar-brand" :to="{ name: 'projects' }">MorphoCluster</router-link>
+            <router-link class="navbar-brand" :to="{ name: 'projects' }">
+                <img src="/frontend/favicon.png" alt="MorphoCluster" class="navbar-logo" />
+                MorphoCluster
+            </router-link>
             <div class="navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     <li class="navbar-item">
@@ -132,6 +135,12 @@ export default {
     overflow: hidden;
 }
 
+#files_table,
+#files_table.table {
+    background-color: var(--table-bg) !important;
+    color: var(--text-primary) !important;
+}
+
 #files_table tr td:nth-child(1) {
     width: 100%;
 }
@@ -140,6 +149,50 @@ export default {
     width: auto;
     text-align: right;
     white-space: nowrap;
+}
+
+#files_table thead,
+#files_table thead th {
+    background-color: var(--bg-secondary) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--border-color) !important;
+}
+
+#files_table tbody,
+#files_table tbody tr,
+#files_table.table-striped tbody tr {
+    background-color: var(--table-bg) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--border-color) !important;
+}
+
+#files_table tbody tr:nth-of-type(odd),
+#files_table.table-striped tbody tr:nth-of-type(odd) {
+    background-color: var(--bg-secondary) !important;
+}
+
+#files_table tbody tr:hover,
+#files_table.table-hover tbody tr:hover {
+    background-color: var(--table-hover-bg) !important;
+}
+
+#files_table tbody tr td,
+#files_table tbody td {
+    border-color: var(--border-color) !important;
+    color: var(--text-primary) !important;
+    background-color: transparent !important;
+}
+
+#files_table a {
+    color: var(--text-primary) !important;
+}
+
+:root.dark-mode #files_table a {
+    color: #5cb3ff !important;
+}
+
+:root.dark-mode #files_table a:hover {
+    color: #8dc9ff !important;
 }
 
 .scrollable {
@@ -151,9 +204,11 @@ export default {
 }
 
 .dropzone {
-    border: 2px dashed #ccc;
+    border: 2px dashed var(--border-color);
+    background-color: var(--bg-secondary);
     padding: 20px;
     text-align: center;
     cursor: pointer;
+    color: var(--text-secondary);
 }
 </style>

@@ -1,7 +1,10 @@
 <template>
   <div id="upload-view">
     <nav class="navbar navbar-expand-lg navbar navbar-dark bg-dark">
-      <router-link class="navbar-brand" :to="{ name: 'projects' }">MorphoCluster</router-link>
+      <router-link class="navbar-brand" :to="{ name: 'projects' }">
+        <img src="/frontend/favicon.png" alt="MorphoCluster" class="navbar-logo" />
+        MorphoCluster
+      </router-link>
       <div class="navbar-collapse">
         <ul class="navbar-nav me-auto">
           <li class="navbar-item">
@@ -784,7 +787,7 @@ export default {
 
 .upload-container {
   flex: 1;
-  padding: 2rem 0 4rem 0;
+  padding: 2rem 0 8rem 0;
   background-color: #f8f9fa;
 }
 
@@ -839,10 +842,10 @@ export default {
   border: 1px solid #dee2e6;
   border-radius: 8px;
   background: white;
-  max-height: 40vh;
+  max-height: calc(100vh - 600px);
+  min-height: 200px;
   overflow-y: auto;
-  margin-bottom: 2rem;
-  padding-bottom: 1rem;
+  margin-bottom: 20rem;
 }
 
 .archive-item {

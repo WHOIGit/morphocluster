@@ -338,8 +338,8 @@ export default {
 }
 
 .archive-info {
-  background-color: #f8f9fa;
-  border: 1px solid #dee2e6;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
   border-radius: 4px;
   padding: 1rem;
 }
@@ -360,10 +360,10 @@ export default {
 }
 
 .format-preview {
-  border: 1px solid #dee2e6;
+  border: 1px solid var(--border-color);
   border-radius: 4px;
   padding: 1rem;
-  background-color: #f8f9fa;
+  background-color: var(--bg-secondary);
 }
 
 .preview-container {
@@ -381,7 +381,7 @@ export default {
 
 .advanced-options .card-header {
   padding: 0.75rem 1rem;
-  background-color: #f8f9fa;
+  background-color: var(--bg-secondary);
 }
 
 .validation-warnings .alert {
@@ -407,15 +407,23 @@ export default {
   z-index: 10;
 }
 
+/* Form descriptions should use secondary text color */
+:deep(.form-group small),
+:deep(.form-text),
+:deep(.invalid-feedback),
+:deep(.form-group .text-muted) {
+  color: var(--text-secondary) !important;
+}
+
 @media (max-width: 768px) {
   .info-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .info-item {
     flex-direction: column;
   }
-  
+
   .info-item strong {
     margin-right: 0;
     margin-bottom: 0.25rem;

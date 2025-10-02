@@ -1,9 +1,10 @@
 <template>
     <div id="approve">
         <nav class="navbar navbar-expand-lg navbar-light bg-dark text-light">
-            <router-link class="navbar-brand text-light" :to="{ name: 'projects' }"
-                >MorphoCluster</router-link
-            >
+            <router-link class="navbar-brand text-light" :to="{ name: 'projects' }">
+                <img src="/frontend/favicon.png" alt="MorphoCluster" class="navbar-logo" />
+                MorphoCluster
+            </router-link>
             <div class="collapse navbar-collapse">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item nav-link text-light" v-if="project">
@@ -441,6 +442,7 @@ export default {
     align-items: stretch;
     flex: 1;
     overflow: hidden;
+    background-color: var(--bg-primary);
 }
 
 #node-info {
@@ -461,6 +463,17 @@ export default {
 
 #decision button {
     margin: 0 1em;
+}
+
+/* Dark mode support */
+#approve .navbar-brand .navbar-logo {
+    height: 32px;
+    width: 32px;
+    object-fit: contain;
+}
+
+:root.dark-mode #approve .navbar-brand .navbar-logo {
+    filter: brightness(0) invert(1);
 }
 
 #progress {

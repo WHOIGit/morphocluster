@@ -108,30 +108,60 @@
 	padding-top: 3px;
 	height: auto;
 	display: flex;
+	color: #212529;
 }
 
 .member-node {
-	background-color: #fdbf6f;
+	background-color: #fdbf6f !important;
 }
 
 .member-node.highlight {
-	background-color: #ff7f00;
+	background-color: #ff7f00 !important;
 }
 
 .member-starred {
-	background-color: #fb9a99;
+	background-color: #fb9a99 !important;
 }
 
 .member-starred.highlight {
-	background-color: #e31a1c;
+	background-color: #e31a1c !important;
 }
 
 .member-object {
-	background-color: #a6cee3;
+	background-color: #a6cee3 !important;
 }
 
 .member-object.highlight {
-	background-color: #1f78b4;
+	background-color: #1f78b4 !important;
+}
+
+/* Dark mode - keep the same colors for visibility */
+:root.dark-mode .member-node {
+	background-color: #fdbf6f !important;
+}
+
+:root.dark-mode .member-node.highlight {
+	background-color: #ff7f00 !important;
+}
+
+:root.dark-mode .member-starred {
+	background-color: #fb9a99 !important;
+}
+
+:root.dark-mode .member-starred.highlight {
+	background-color: #e31a1c !important;
+}
+
+:root.dark-mode .member-object {
+	background-color: #a6cee3 !important;
+}
+
+:root.dark-mode .member-object.highlight {
+	background-color: #1f78b4 !important;
+}
+
+:root.dark-mode .member-headline {
+	color: #212529;
 }
 
 .member.ui-selecting, .member.ui-selected {

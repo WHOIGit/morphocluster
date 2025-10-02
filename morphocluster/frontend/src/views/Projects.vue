@@ -1,7 +1,10 @@
 <template>
     <div id="projects">
         <nav class="navbar navbar-expand-lg navbar navbar-dark bg-dark">
-            <router-link class="navbar-brand" :to="{ name: 'projects' }">MorphoCluster</router-link>
+            <router-link class="navbar-brand" :to="{ name: 'projects' }">
+                <img src="/frontend/favicon.png" alt="MorphoCluster" class="navbar-logo" />
+                MorphoCluster
+            </router-link>
             <ul class="navbar-nav me-auto">
                 <li class="nav-item">
                     <span class="nav-link active">Projects</span>
@@ -270,6 +273,12 @@ export default {
     overflow: hidden;
 }
 
+#projects_table,
+#projects_table.table {
+    background-color: var(--table-bg) !important;
+    color: var(--text-primary) !important;
+}
+
 #projects_table tr td:nth-child(1) {
     width: 100%;
 }
@@ -280,11 +289,74 @@ export default {
     white-space: nowrap;
 }
 
+#projects_table thead,
+#projects_table thead th {
+    background-color: var(--bg-secondary) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--border-color) !important;
+}
+
+#projects_table tbody,
+#projects_table tbody tr,
+#projects_table.table-striped tbody tr {
+    background-color: var(--table-bg) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--border-color) !important;
+}
+
+#projects_table tbody tr:nth-of-type(odd),
+#projects_table.table-striped tbody tr:nth-of-type(odd) {
+    background-color: var(--bg-secondary) !important;
+}
+
+#projects_table tbody tr:hover,
+#projects_table.table-hover tbody tr:hover {
+    background-color: var(--table-hover-bg) !important;
+}
+
+#projects_table tbody tr td,
+#projects_table tbody td {
+    border-color: var(--border-color) !important;
+    color: var(--text-primary) !important;
+    background-color: transparent !important;
+}
+
+#projects_table a {
+    color: var(--text-primary) !important;
+}
+
+:root.dark-mode #projects_table a {
+    color: #5cb3ff !important;
+}
+
+:root.dark-mode #projects_table a:hover {
+    color: #8dc9ff !important;
+}
+
 .scrollable {
     overflow-y: auto;
 }
 
 .alerts {
     padding-top: 1em;
+}
+
+/* Override Bootstrap button styles in dark mode */
+:root.dark-mode #projects_table .btn-primary {
+    background-color: #0d6efd !important;
+    border-color: #0d6efd !important;
+    color: #ffffff !important;
+}
+
+:root.dark-mode #projects_table .btn-info {
+    background-color: #0dcaf0 !important;
+    border-color: #0dcaf0 !important;
+    color: #000000 !important;
+}
+
+:root.dark-mode #projects_table .btn-secondary {
+    background-color: #6c757d !important;
+    border-color: #6c757d !important;
+    color: #ffffff !important;
 }
 </style>

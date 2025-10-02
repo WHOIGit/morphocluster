@@ -332,13 +332,13 @@ export default {
 .upload-zone {
   border: 3px dashed #dee2e6;
   border-radius: 12px;
-  padding: 3rem 2rem;
+  padding: 1rem 1.5rem;
   text-align: center;
   background-color: #f8f9fa;
   cursor: pointer;
   transition: all 0.3s ease;
   position: relative;
-  min-height: 300px;
+  min-height: 120px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -372,8 +372,8 @@ export default {
 }
 
 .upload-icon {
-  font-size: 4rem;
-  margin-bottom: 1rem;
+  font-size: 3rem;
+  margin-bottom: 0.75rem;
   color: #6c757d;
 }
 
@@ -390,20 +390,20 @@ export default {
 }
 
 .upload-zone h4 {
-  margin-bottom: 1rem;
+  margin-bottom: 0.5rem;
   color: #495057;
   font-weight: 600;
 }
 
 .upload-zone p {
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.25rem;
   color: #6c757d;
 }
 
 .supported-formats {
   font-size: 0.875rem;
   font-style: italic;
-  margin-bottom: 2rem !important;
+  margin-bottom: 1rem !important;
 }
 
 .upload-btn {
