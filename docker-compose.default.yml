@@ -1,14 +1,11 @@
-version: '3'
 services:
   morphocluster:
-    # TODO: Provide docker-compose.prod.yml
-    # build:
-    #   context: .
-    #   dockerfile: docker/morphocluster/Dockerfile
-    # image: morphocluster/morphocluster:0.2.1
-    # ports:
-    #   # Expose port 8000 (web service)
-    #   - "8000:8000"
+    build:
+      context: .
+      dockerfile: docker/morphocluster/Dockerfile
+    ports:
+      # Expose port 8001 (web service)
+      - "8001:8000"
     depends_on:
       - postgres
       - redis-lru
@@ -57,6 +54,20 @@ services:
       - ./docker/redis-lru/redis/redis.conf:/usr/local/etc/redis/redis.conf
     command: [ "redis-server", "/usr/local/etc/redis/redis.conf" ]
     restart: unless-stopped
+
+  rq-worker:
+    build:
+      context: .
+      dockerfile: docker/morphocluster/Dockerfile
+    depends_on:
+      - postgres
+      - redis-rq
+    restart: unless-stopped
+    volumes:
+      - morphocluster-data:/data
+    environment:
+      - FLASK_APP=morphocluster
+    command: ["rq", "worker", "--url", "redis://redis-rq:6379"]
 
 volumes:
   # We use named volumes so that the data is not lost if the image is rebuilt
