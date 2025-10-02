@@ -2130,6 +2130,7 @@ def get_job(job_id):
 # Uploaded Archives Management
 # ===============================================================================
 
+
 @api.route("/uploaded-archives", methods=["GET"])
 def get_uploaded_archives():
     """Get all uploaded archives for the current user/session."""
@@ -2155,7 +2156,7 @@ def get_uploaded_archives():
                 "feature_file": row.feature_file,
                 "project_id": row.project_id,
                 "error_message": row.error_message,
-                "metadata": row.metadata or "{}"
+                "metadata": row.metadata or "{}",
             }
             archives.append(archive_data)
 
@@ -2181,7 +2182,7 @@ def save_uploaded_archive():
         "feature_file": data.get("feature_file"),
         "project_id": data.get("project_id"),
         "error_message": data.get("error_message"),
-        "metadata": data.get("metadata", "{}")
+        "metadata": data.get("metadata", "{}"),
     }
 
     with database.engine.connect() as conn:
@@ -2194,21 +2195,25 @@ def save_uploaded_archive():
                 uploaded_archives.select().where(uploaded_archives.c.id == archive_id)
             ).fetchone()
 
-            return jsonify({
-                "id": row.id,
-                "filename": row.filename,
-                "original_filename": row.original_filename,
-                "file_size": row.file_size,
-                "upload_date": row.upload_date.isoformat() if row.upload_date else None,
-                "status": row.status,
-                "is_valid": row.is_valid,
-                "needs_conversion": row.needs_conversion,
-                "validation_data": row.validation_data,
-                "feature_file": row.feature_file,
-                "project_id": row.project_id,
-                "error_message": row.error_message,
-                "metadata": row.metadata or "{}"
-            })
+            return jsonify(
+                {
+                    "id": row.id,
+                    "filename": row.filename,
+                    "original_filename": row.original_filename,
+                    "file_size": row.file_size,
+                    "upload_date": (
+                        row.upload_date.isoformat() if row.upload_date else None
+                    ),
+                    "status": row.status,
+                    "is_valid": row.is_valid,
+                    "needs_conversion": row.needs_conversion,
+                    "validation_data": row.validation_data,
+                    "feature_file": row.feature_file,
+                    "project_id": row.project_id,
+                    "error_message": row.error_message,
+                    "metadata": row.metadata or "{}",
+                }
+            )
 
 
 @api.route("/uploaded-archives/<int:archive_id>", methods=["PUT"])
@@ -2257,18 +2262,22 @@ def update_uploaded_archive(archive_id):
             if not row:
                 raise werkzeug.exceptions.NotFound("Archive not found")
 
-            return jsonify({
-                "id": row.id,
-                "filename": row.filename,
-                "original_filename": row.original_filename,
-                "file_size": row.file_size,
-                "upload_date": row.upload_date.isoformat() if row.upload_date else None,
-                "status": row.status,
-                "is_valid": row.is_valid,
-                "needs_conversion": row.needs_conversion,
-                "validation_data": row.validation_data,
-                "feature_file": row.feature_file,
-                "project_id": row.project_id,
-                "error_message": row.error_message,
-                "metadata": row.metadata or "{}"
-            })
+            return jsonify(
+                {
+                    "id": row.id,
+                    "filename": row.filename,
+                    "original_filename": row.original_filename,
+                    "file_size": row.file_size,
+                    "upload_date": (
+                        row.upload_date.isoformat() if row.upload_date else None
+                    ),
+                    "status": row.status,
+                    "is_valid": row.is_valid,
+                    "needs_conversion": row.needs_conversion,
+                    "validation_data": row.validation_data,
+                    "feature_file": row.feature_file,
+                    "project_id": row.project_id,
+                    "error_message": row.error_message,
+                    "metadata": row.metadata or "{}",
+                }
+            )

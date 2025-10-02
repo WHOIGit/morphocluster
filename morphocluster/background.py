@@ -28,7 +28,7 @@ class JobLogger:
         log_entry = {
             "timestamp": dt.datetime.now().isoformat(),
             "level": level,
-            "message": str(message)
+            "message": str(message),
         }
 
         # Add to logs array
@@ -161,6 +161,7 @@ def extract_features_job(filename, parameters=None):
     Background job for extracting features from uploaded archive using MorphoCluster's real feature extraction.
     """
     from rq import get_current_job
+
     job = get_current_job()
     logger = JobLogger(job)
 
@@ -276,7 +277,9 @@ def extract_features_job(filename, parameters=None):
                 # Map from 15% to 95% based on batch progress
                 progress = 15 + int((current_batch / total_batches) * 80)
                 job.meta["progress"] = progress
-                job.meta["current_step"] = f"Extracting features: batch {current_batch}/{total_batches}"
+                job.meta["current_step"] = (
+                    f"Extracting features: batch {current_batch}/{total_batches}"
+                )
                 job.save_meta()
 
             # Run MorphoCluster's real feature extraction
@@ -350,14 +353,18 @@ def convert_ecotaxa_job(filename, parameters=None):
         try:
             # Always use the original file for conversion, not the _converted version
             original_filename = filename
-            if filename.endswith('_converted.zip'):
-                original_filename = filename.replace('_converted.zip', '.zip')
-                logger.info(f"Converting from original file: {original_filename} instead of {filename}")
+            if filename.endswith("_converted.zip"):
+                original_filename = filename.replace("_converted.zip", ".zip")
+                logger.info(
+                    f"Converting from original file: {original_filename} instead of {filename}"
+                )
 
             archive_path = Path(app_instance.config["FILES_DIR"]) / original_filename
 
             if not archive_path.exists():
-                raise FileNotFoundError(f"Original archive {original_filename} not found")
+                raise FileNotFoundError(
+                    f"Original archive {original_filename} not found"
+                )
 
             # Step 1: Analyze parameters
             job.meta["progress"] = 10
@@ -413,22 +420,32 @@ def convert_ecotaxa_job(filename, parameters=None):
                 try:
                     import zipfile
 
-                    with zipfile.ZipFile(work_path, 'r') as zf:
-                        ecotaxa_files = [f for f in zf.namelist() if 'ecotaxa' in f.lower()]
+                    with zipfile.ZipFile(work_path, "r") as zf:
+                        ecotaxa_files = [
+                            f for f in zf.namelist() if "ecotaxa" in f.lower()
+                        ]
                         logger.info(f"  ecotaxa files in work zip: {ecotaxa_files}")
 
                         if ecotaxa_files:
                             with zf.open(ecotaxa_files[0]) as fp:
-                                first_line = fp.readline().decode(encoding or 'ascii').strip()
+                                first_line = (
+                                    fp.readline().decode(encoding or "ascii").strip()
+                                )
                                 logger.info(f"  first line: {repr(first_line)}")
 
-                                actual_delimiter = delimiter or '\t'
+                                actual_delimiter = delimiter or "\t"
                                 columns = first_line.split(actual_delimiter)
                                 logger.info(f"  actual columns found: {columns}")
                                 logger.info(f"  number of columns: {len(columns)}")
-                                logger.info(f"  delimiter used: {repr(actual_delimiter)}")
-                                logger.info(f"  has object_id: {'object_id' in columns}")
-                                logger.info(f"  has img_file_name: {'img_file_name' in columns}")
+                                logger.info(
+                                    f"  delimiter used: {repr(actual_delimiter)}"
+                                )
+                                logger.info(
+                                    f"  has object_id: {'object_id' in columns}"
+                                )
+                                logger.info(
+                                    f"  has img_file_name: {'img_file_name' in columns}"
+                                )
 
                                 # Show each column individually for debugging
                                 for i, col in enumerate(columns):
@@ -510,6 +527,7 @@ def initial_clustering_job(archive_name, feature_file, parameters=None):
     Background job for initial clustering to create a new MorphoCluster project.
     """
     from rq import get_current_job
+
     job = get_current_job()
     logger = JobLogger(job)
 
