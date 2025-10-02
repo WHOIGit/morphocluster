@@ -1,9 +1,10 @@
 <template>
     <div id="approve">
         <nav class="navbar navbar-expand-lg navbar-light bg-dark text-light">
-            <router-link class="navbar-brand text-light" to="/"
-                >MorphoCluster</router-link
-            >
+            <router-link class="navbar-brand text-light" :to="{ name: 'projects' }">
+                <img src="/frontend/favicon.png" alt="MorphoCluster" class="navbar-logo" />
+                MorphoCluster
+            </router-link>
             <div class="collapse navbar-collapse">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item nav-link text-light" v-if="project">
@@ -107,15 +108,16 @@
             no-fade
             header-bg-variant="success"
             title="Approval done"
+            hide-footer
         >
             <div class="d-block text-center">
                 Approval is done for this project.
             </div>
-            <footer slot="modal-footer">
+            <div class="d-flex justify-content-center mt-3">
                 <b-button variant="primary" :to="{ name: 'projects' }"
                     >Back to projects</b-button
                 >
-            </footer>
+            </div>
         </b-modal>
     </div>
 </template>
@@ -281,6 +283,14 @@ export default {
             // Should members_url be updated (with unique id etc.) on response?
             var updateMembersUrl = false;
 
+            // Guard against null node
+            if (!this.node) {
+                if ($state && $state.complete) {
+                    $state.complete();
+                }
+                return;
+            }
+
             if (!this.members_url) {
                 const nodes = this.node.children;
                 this.members_url = `/api/nodes/${
@@ -402,6 +412,12 @@ export default {
         moveupMember(member) {
             console.log("Remove", this.getUniqueId(member));
 
+            // Guard against null node
+            if (!this.node || !this.node.parent_id) {
+                console.error("Cannot move member: node or parent_id is null");
+                return;
+            }
+
             // TODO: Also reject members.
             api.nodeAdoptMembers(this.node.parent_id, [member])
                 .then(() => {
@@ -426,6 +442,7 @@ export default {
     align-items: stretch;
     flex: 1;
     overflow: hidden;
+    background-color: var(--bg-primary);
 }
 
 #node-info {
@@ -446,6 +463,17 @@ export default {
 
 #decision button {
     margin: 0 1em;
+}
+
+/* Dark mode support */
+#approve .navbar-brand .navbar-logo {
+    height: 32px;
+    width: 32px;
+    object-fit: contain;
+}
+
+:root.dark-mode #approve .navbar-brand .navbar-logo {
+    filter: brightness(0) invert(1);
 }
 
 #progress {

@@ -1,9 +1,10 @@
 <template>
     <div id="bisect">
         <nav class="navbar navbar-expand-lg navbar-light bg-dark text-light">
-            <router-link class="navbar-brand text-light" to="/"
-                >MorphoCluster</router-link
-            >
+            <router-link class="navbar-brand text-light" :to="{ name: 'projects' }">
+                <img src="/frontend/favicon.png" alt="MorphoCluster" class="navbar-logo" />
+                MorphoCluster
+            </router-link>
             <div class="collapse navbar-collapse">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item nav-link text-light" v-if="project">
@@ -182,15 +183,16 @@
             no-fade
             header-bg-variant="success"
             title="Growing done"
+            hide-footer
         >
             <div class="d-block text-center">
                 Growing is done for this project.
             </div>
-            <footer slot="modal-footer">
+            <div class="d-flex justify-content-center mt-3">
                 <b-button variant="primary" :to="{ name: 'projects' }"
                     >Back to projects</b-button
                 >
-            </footer>
+            </div>
         </b-modal>
     </div>
 </template>
@@ -756,6 +758,16 @@ export default {
 </script>
 
 <style>
+#bisect .navbar-brand .navbar-logo {
+    height: 32px;
+    width: 32px;
+    object-fit: contain;
+}
+
+:root.dark-mode #bisect .navbar-brand .navbar-logo {
+    filter: brightness(0) invert(1);
+}
+
 #bisect {
     display: flex;
     flex-direction: column;

@@ -30,6 +30,16 @@ const routes = [
       component: () => import(/* webpackChunkName: "projects" */ './views/Projects.vue'),
     },
     {
+      name: 'upload',
+      path: '/upload',
+      component: () => import(/* webpackChunkName: "upload" */ './views/Upload.vue'),
+    },
+    {
+      name: 'jobs',
+      path: '/jobs',
+      component: () => import(/* webpackChunkName: "jobs" */ './views/JobQueue.vue'),
+    },
+    {
       name: 'files',
       path: '/files/:file_path?',
       component: () => import(/* webpackChunkName: "files" */ './views/Files.vue'),
@@ -48,7 +58,7 @@ const routes = [
     },
     {
       path: '/',
-      redirect: '/home'
+      redirect: '/p'
     },
     { path: '/:pathMatch(.*)*', component: NotFound }
   ]

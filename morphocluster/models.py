@@ -45,6 +45,7 @@ projects = Table(
     Column("name", String),
     Column("creation_date", DateTime, default=datetime.datetime.now),
     Column("visible", Boolean, nullable=False, server_default="t"),
+    Column("metadata", Text, nullable=True),  # JSON metadata for clustering parameters
 )
 
 #: :type nodes: sqlalchemy.sql.schema.Table
@@ -177,6 +178,28 @@ log = Table(
     Column("action", Text, nullable=False),
     Column("reverse_action", Text, nullable=True),
     Column("data", Text, nullable=True),
+)
+
+uploaded_archives = Table(
+    "uploaded_archives",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("filename", String, nullable=False),
+    Column("original_filename", String, nullable=False),
+    Column("file_size", BigInteger, nullable=False),
+    Column("upload_date", DateTime, default=datetime.datetime.now),
+    Column(
+        "status", String, nullable=False, default="uploaded"
+    ),  # uploaded, converting, extracting, clustering, completed, error
+    Column("is_valid", Boolean, default=False),
+    Column("needs_conversion", Boolean, default=False),
+    Column("validation_data", Text, nullable=True),  # JSON validation details
+    Column("feature_file", String, nullable=True),  # Generated feature file name
+    Column(
+        "project_id", Integer, ForeignKey("projects.project_id"), nullable=True
+    ),  # Created project
+    Column("error_message", Text, nullable=True),
+    Column("metadata", Text, nullable=True),  # JSON metadata for additional info
 )
 
 # ===============================================================================

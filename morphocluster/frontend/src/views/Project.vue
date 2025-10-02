@@ -1,13 +1,22 @@
 <template>
     <div id="project">
         <nav class="navbar navbar-expand-lg navbar navbar-dark bg-dark">
-            <router-link class="navbar-brand" :to="{ name: 'home' }">MorphoCluster</router-link>
+            <router-link class="navbar-brand" :to="{ name: 'projects' }">MorphoCluster</router-link>
             <div class="navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
                         <router-link class="nav-link" :to="{ name: 'projects' }">Projects</router-link>
                     </li>
                     <li class="nav-item">
+                        <router-link class="nav-link" :to="{ name: 'files' }">Files</router-link>
+                    </li>
+                    <li class="nav-item">
+                        <router-link class="nav-link" :to="{ name: 'upload' }">Upload</router-link>
+                    </li>
+                    <li class="nav-item">
+                        <router-link class="nav-link" :to="{ name: 'jobs' }">Jobs</router-link>
+                    </li>
+                    <li class="nav-item" v-if="project">
                         <router-link class="nav-link"
                             :to="{ name: 'project', params: { project_id: project.project_id } }">{{
                                 project.name }}</router-link>
@@ -17,31 +26,36 @@
             <dark-mode-control />
         </nav>
         <div class="container">
-            <table id="table" style="width=100%">
-                <tbody>
-                    <tr>
-                        <td>Created on</td>
-                        <td>{{ project.creation_date }}</td>
-                    </tr>
-                    <tr>
-                        <td>Name</td>
-                        <td>{{ project.name }}</td>
-                    </tr>
-                    <tr>
-                        <td>Node_id</td>
-                        <td>{{ project.node_id }}</td>
-                    </tr>
-                    <tr>
-                        <td>Project_id</td>
-                        <td>{{ project.project_id }}</td>
-                    </tr>
-                    <tr>
-                        <td>Visible</td>
-                        <td>{{ project.visible }}</td>
-                    </tr>
-                </tbody>
-            </table>
-            <div style="margin: auto ; width: 0; padding-top: 7px ">
+            <div v-if="project">
+                <table id="table" style="width=100%">
+                    <tbody>
+                        <tr>
+                            <td>Created on</td>
+                            <td>{{ project.creation_date }}</td>
+                        </tr>
+                        <tr>
+                            <td>Name</td>
+                            <td>{{ project.name }}</td>
+                        </tr>
+                        <tr>
+                            <td>Node_id</td>
+                            <td>{{ project.node_id }}</td>
+                        </tr>
+                        <tr>
+                            <td>Project_id</td>
+                            <td>{{ project.project_id }}</td>
+                        </tr>
+                        <tr>
+                            <td>Visible</td>
+                            <td>{{ project.visible }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div v-else>
+                <p>Loading project...</p>
+            </div>
+            <div v-if="project" style="margin: auto ; width: 0; padding-top: 7px ">
                 <b-button size="sm" variant="primary" href="" @click.prevent="showSaveModal(project)">
                     Save Project
                 </b-button>
