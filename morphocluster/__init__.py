@@ -46,6 +46,7 @@ def create_app(test_config: Optional[Mapping] = None):
     faulthandler.enable()
 
     app = Flask(__name__, instance_relative_config=True)
+    print("MorphoCluster Flask application is being created")
 
     # Set environment variables
     if test_config is not None:
