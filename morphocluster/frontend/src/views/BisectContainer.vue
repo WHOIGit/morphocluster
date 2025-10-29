@@ -40,6 +40,7 @@ import Spinner from "vue-simple-spinner";
 import mixins from "@/mixins.js";
 
 import * as api from "@/helpers/api.js";
+import { API_BASE } from "@/helpers/api.js";
 
 import MessageLog from "@/components/MessageLog.vue";
 import DummyComponent from "@/components/DummyComponent.vue";
@@ -50,6 +51,7 @@ export default {
     name: "bisect",
     data() {
         return {
+            API_BASE, // Make available to template
             project: null,
             project_loading_queue: null,
             project_wp_promises: [],
@@ -185,7 +187,7 @@ export default {
             var nodePromise = api.getNode(node_id);
 
             // Get the URL for the cached members
-            var membersUrl = `/api/nodes/${node_id}/members?objects=1&nodes=0&arrange_by=random&page=0`;
+            var membersUrl = `${API_BASE}/api/nodes/${node_id}/members?objects=1&nodes=0&arrange_by=random&page=0`;
             var membersUrlPromise = axios.get(membersUrl).then(response => {
                 return response.data.links.self;
             });

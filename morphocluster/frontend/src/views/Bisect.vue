@@ -2,7 +2,7 @@
     <div id="bisect">
         <nav class="navbar navbar-expand-lg navbar-light bg-dark text-light">
             <router-link class="navbar-brand text-light" :to="{ name: 'projects' }">
-                <img src="/frontend/favicon.png" alt="MorphoCluster" class="navbar-logo" />
+                <img :src="`${API_BASE}/frontend/favicon.png`" alt="MorphoCluster" class="navbar-logo" />
                 MorphoCluster
             </router-link>
             <div class="collapse navbar-collapse">
@@ -205,6 +205,7 @@ import shuffle from "lodash/shuffle";
 import mixins from "@/mixins.js";
 
 import * as api from "@/helpers/api.js";
+import { API_BASE } from "@/helpers/api.js";
 
 import MemberPreview from "@/components/MemberPreview.vue";
 import MessageLog from "@/components/MessageLog.vue";
@@ -218,6 +219,7 @@ export default {
     name: "BisectView",
     data() {
         return {
+            API_BASE, // Make available to template
             node_status: "",
             project: null,
             node: null,
@@ -506,7 +508,7 @@ export default {
             // TODO: arrange_by=random
             if (!this.node_members_url) {
                 const nodes = !!this.node.children;
-                this.node_members_url = `/api/nodes/${
+                this.node_members_url = `${API_BASE}/api/nodes/${
                     this.node.node_id
                 }/members?objects=${!nodes}&nodes=${nodes}&arrange_by=random&`;
                 this.node_members_page = 0;

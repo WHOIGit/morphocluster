@@ -47,7 +47,7 @@ function init_tree() {
 	function patchNode(node_id, data) {
 		return $.ajax({
 			type: "PATCH",
-			url: "/api/nodes/" + node_id,
+			url: window.API_BASE + "/api/nodes/" + node_id,
 			data: JSON.stringify(data),
 			contentType: "application/json; charset=utf-8",
 			dataType: "json",
@@ -62,7 +62,7 @@ function init_tree() {
 		state = state || { display: "children" };
 		
 		$nodeStatus.text("Loading node " + node_id + "...");
-		$.get("/api/nodes/" + node_id).done(function (node) {
+		$.get(window.API_BASE + "/api/nodes/" + node_id).done(function (node) {
 			appState.node = node;
 			$.extend(appState, state);
 			
@@ -91,9 +91,9 @@ function init_tree() {
 			'data' : {
 				'url' : function(node) {
 					if(node.id === "#") {
-						return "/api/tree";
+						return window.API_BASE + "/api/tree";
 					}
-					return "/api/tree/" + node.id;
+					return window.API_BASE + "/api/tree/" + node.id;
 				}
 			}
 		}
@@ -271,7 +271,7 @@ function init_tree() {
 		};
 		
 		members_loading = true;
-		$.get("/api/nodes/" + node.id + '/members', parameters).done(processResponse).fail(function (jqXHR, textStatus, errorThrown) {
+		$.get(window.API_BASE + "/api/nodes/" + node.id + '/members', parameters).done(processResponse).fail(function (jqXHR, textStatus, errorThrown) {
 			console.log(jqXHR, textStatus, errorThrown);
 			$nodeStatus.text(textStatus + ", " + errorThrown);
 		});
@@ -319,7 +319,7 @@ function init_tree() {
 		
 		return $.ajax({
 			type: "POST",
-			url: "/api/nodes/" + node_id + "/merge_into",
+			url: window.API_BASE + "/api/nodes/" + node_id + "/merge_into",
 			data: JSON.stringify({dest_node_id: dest_node_id}),
 			contentType: "application/json; charset=utf-8",
 			dataType: "json",
@@ -335,7 +335,7 @@ function init_tree() {
 		
 		return $.ajax({
 			type: "POST",
-			url: "/api/nodes/" + parent_node_id + "/adopt_members",
+			url: window.API_BASE + "/api/nodes/" + parent_node_id + "/adopt_members",
 			data: JSON.stringify({members: members}),
 			contentType: "application/json; charset=utf-8",
 			dataType: "json",
@@ -358,7 +358,7 @@ function init_tree() {
 		
 		$.ajax({
 			type: "PATCH",
-			url: "/api/nodes/" + node.node_id,
+			url: window.API_BASE + "/api/nodes/" + node.node_id,
 			data: JSON.stringify(data),
 			contentType: "application/json; charset=utf-8",
 			dataType: "json",
@@ -421,18 +421,18 @@ function init_tree() {
 		
 		if (appState.display == "children") {
 			console.log("Recommending children.");
-			
+
 			members_loading = true;
-			$.get("/api/nodes/" + node_id + '/recommended_children', {max_n: 1000}).done(processResponse).fail(
+			$.get(window.API_BASE + "/api/nodes/" + node_id + '/recommended_children', {max_n: 1000}).done(processResponse).fail(
 					function (jqXHR, textStatus, errorThrown) {
 						console.log(jqXHR, textStatus, errorThrown);
 						$recommendStatus.text(textStatus + ", " + errorThrown);
 					});
 		} else {
 			console.log("Recommending objects.");
-			
+
 			members_loading = true;
-			$.get("/api/nodes/" + node_id + '/recommended_objects', {max_n: 10000}).done(processResponse).fail(
+			$.get(window.API_BASE + "/api/nodes/" + node_id + '/recommended_objects', {max_n: 10000}).done(processResponse).fail(
 					function (jqXHR, textStatus, errorThrown) {
 						console.log(jqXHR, textStatus, errorThrown);
 						$recommendStatus.text(textStatus + ", " + errorThrown);
@@ -501,7 +501,7 @@ function init_tree() {
 		var $node_images = $node.children(".images");
 		
 		$.each(node.preview, function (k, v) {
-			$node_images.append('<img src="/get_obj_image/' + v + '" class="show-tt-fullsize" />');
+			$node_images.append('<img src="' + window.API_BASE + '/get_obj_image/' + v + '" class="show-tt-fullsize" />');
 		});
 		
 		return $node;
@@ -612,10 +612,10 @@ function init_tree() {
 				console.log("node_id", node_id);
 				
 				$nodeStatus.text("Adding " + droppedMemberIDs.length + " members to " + node_id + "...");
-				
+
 				$.ajax({
 					type: "POST",
-					url: "/api/nodes/" + node_id + "/members",
+					url: window.API_BASE + "/api/nodes/" + node_id + "/members",
 					data: JSON.stringify(droppedMemberIDs),
 					contentType: "application/json; charset=utf-8",
 					dataType: "json",
@@ -658,9 +658,9 @@ function init_tree() {
 			}
 			
 			var $node_images = $member.children(".images").first();
-			
+
 			$.each(member["type_objects"], function (k, v) {
-				$node_images.append('<img src="/get_obj_image/' + v + '" class="show-tt-fullsize" />');
+				$node_images.append('<img src="' + window.API_BASE + '/get_obj_image/' + v + '" class="show-tt-fullsize" />');
 			});
 		}
 		
@@ -708,13 +708,13 @@ function init_tree() {
 			$member.data("display", "objects").addClass("member-object");
 			$title.html('<i class="mdi mdi-dark mdi-blur"></i>' + appState.node.n_objects + ' Objects');
 			$.each(appState.node.own_type_objects, function (k, v) {
-				$images.append('<img src="/get_obj_image/' + v + '" class="show-tt-fullsize" />');
+				$images.append('<img src="' + window.API_BASE + '/get_obj_image/' + v + '" class="show-tt-fullsize" />');
 			});
 		} else {
 			$member.data("display", "children").addClass("member-node");
 			$title.html('<i class="mdi mdi-dark mdi-hexagon-multiple"></i>' + appState.node.n_children + ' Children');
 			$.each(appState.node.type_objects, function (k, v) {
-				$images.append('<img src="/get_obj_image/' + v + '" class="show-tt-fullsize" />');
+				$images.append('<img src="' + window.API_BASE + '/get_obj_image/' + v + '" class="show-tt-fullsize" />');
 			});
 		}
 		
@@ -827,10 +827,10 @@ function init_tree() {
 		var node_id = appState.node.node_id;
 		
 		$recommendStatus.text("Adding " + selectedMembers.length + " members to " + node_id + "...");
-		
+
 		$.ajax({
 			type: "POST",
-			url: "/api/nodes/" + node_id + "/members",
+			url: window.API_BASE + "/api/nodes/" + node_id + "/members",
 			data: JSON.stringify(selectedMembers),
 			contentType: "application/json; charset=utf-8",
 			dataType: "json",
@@ -1052,10 +1052,10 @@ function init_tree() {
 		console.log("Grouping: ", selectedMembers, "as new child of", parentNodeId, "with name", name);
 		
 		$nodeStatus.text("Saving umbrella term...");
-		
+
 		$.ajax({
 			type: "POST",
-			url: "/api/nodes",
+			url: window.API_BASE + "/api/nodes",
 			data: JSON.stringify({parent_id: parentNodeId, name: name, members: selectedMembers, starred: 1}),
 			contentType: "application/json; charset=utf-8",
 			dataType: "json",
@@ -1097,10 +1097,10 @@ function init_tree() {
 		
 		req_params = {safe: false, subnode: true};
 		req_params[appState.display == "children" ? "nodes" : "objects"] = 1;
-		
+
 		$.ajax({
 			type: "POST",
-			url: "/api/nodes/" + node_id + "/classify?" + $.param(req_params),
+			url: window.API_BASE + "/api/nodes/" + node_id + "/classify?" + $.param(req_params),
 			contentType: "application/json; charset=utf-8",
 			dataType: "json",
 		}).done(function (resonse) {
@@ -1124,9 +1124,9 @@ function init_tree() {
 	function loadNextNode(node_id, leaf) {
 		leaf = (typeof leaf !== 'undefined') ? leaf : false;
 		console.log("leaf:", leaf);
-		return $.get("/api/nodes/" + node_id  + "/next", {leaf: leaf}).done(function (next_node_id) {
+		return $.get(window.API_BASE + "/api/nodes/" + node_id  + "/next", {leaf: leaf}).done(function (next_node_id) {
 			$("#tree-status").empty();
-			
+
 			loadNode(next_node_id);
 		});
 	}

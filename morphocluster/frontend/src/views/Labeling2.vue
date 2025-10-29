@@ -24,6 +24,7 @@
 
 <script>
 import axios from "axios";
+import { API_BASE } from "@/helpers/api.js";
 
 import MemberPreview from "@/components/MemberPreview.vue";
 import NodeHeader from "@/components/NodeHeader.vue";
@@ -77,7 +78,7 @@ export default {
       var updateMembersUrl = false;
 
       if (!this.members_url) {
-        this.members_url = `/api/nodes/${
+        this.members_url = `${API_BASE}/api/nodes/${
           this.node_id
         }/members?objects=true&arrange_by=interleaved`;
         this.page = 0;
@@ -111,7 +112,7 @@ export default {
   mounted() {
     // Load node info
     axios
-      .get(`/api/nodes/${this.node_id}`)
+      .get(`${API_BASE}/api/nodes/${this.node_id}`)
       .then(response => {
         this.node = response.data;
         this.$nextTick(() => {

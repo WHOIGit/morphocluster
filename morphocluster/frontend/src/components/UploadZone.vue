@@ -90,13 +90,14 @@
 
 <script>
 import axios from 'axios';
+import { API_BASE } from '@/helpers/api.js';
 
 export default {
   name: 'UploadZone',
   props: {
     uploadUrl: {
       type: String,
-      default: '/api/upload'
+      default: `${API_BASE}/api/upload`
     },
     maxFileSize: {
       type: Number,

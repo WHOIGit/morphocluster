@@ -2,7 +2,7 @@
   <div id="upload-view">
     <nav class="navbar navbar-expand-lg navbar navbar-dark bg-dark">
       <router-link class="navbar-brand" :to="{ name: 'projects' }">
-        <img src="/frontend/favicon.png" alt="MorphoCluster" class="navbar-logo" />
+        <img :src="`${API_BASE}/frontend/favicon.png`" alt="MorphoCluster" class="navbar-logo" />
         MorphoCluster
       </router-link>
       <div class="navbar-collapse">
@@ -255,6 +255,7 @@
 </template>
 
 <script>
+import { API_BASE } from '@/helpers/api.js';
 import UploadZone from '@/components/UploadZone.vue';
 import JobStatus from '@/components/JobStatus.vue';
 import DarkModeControl from '@/components/DarkModeControl.vue';
@@ -275,7 +276,8 @@ export default {
   },
   data() {
     return {
-      uploadUrl: '/api/upload',
+      API_BASE, // Make available to template and methods
+      uploadUrl: `${API_BASE}/api/upload`,
       maxFileSize: 2 * 1024 * 1024 * 1024, // 2GB
       acceptedTypes: ['.zip', '.tar', '.tar.gz'],
       uploadedArchives: [],
@@ -329,7 +331,7 @@ export default {
       for (const file of uploadedFiles) {
         console.log('Validating file:', file.name);
         try {
-          const validation = await this.$axios.get(`/api/files/${encodeURIComponent(file.name)}/validate`);
+          const validation = await this.$axios.get(`${API_BASE}/api/files/${encodeURIComponent(file.name)}/validate`);
           console.log('Validation result:', validation.data);
 
           const archiveData = {
@@ -430,7 +432,7 @@ export default {
 
     async previewArchive(archive) {
       try {
-        const response = await this.$axios.get(`/api/files/${archive.filename}/preview`);
+        const response = await this.$axios.get(`${API_BASE}/api/files/${archive.filename}/preview`);
         this.previewData = response.data;
         this.showingPreviewModal = true;
       } catch (error) {
@@ -460,7 +462,7 @@ export default {
         });
 
         await this.$axios.post(
-          `/api/files/${archive.filename}/convert`,
+          `${API_BASE}/api/files/${archive.filename}/convert`,
           parameters
         );
 
@@ -489,7 +491,7 @@ export default {
 
       try {
         await this.$axios.post(
-          `/api/files/${archive.filename}/extract`,
+          `${API_BASE}/api/files/${archive.filename}/extract`,
           parameters
         );
 
@@ -516,7 +518,7 @@ export default {
 
       try {
         await this.$axios.post(
-          `/api/files/${encodeURIComponent(archive.filename)}/cluster`,
+          `${API_BASE}/api/files/${encodeURIComponent(archive.filename)}/cluster`,
           parameters
         );
 

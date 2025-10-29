@@ -86,6 +86,7 @@
 
 <script>
 import * as api from "@/helpers/api.js";
+import { API_BASE } from "@/helpers/api.js";
 import axios from "axios";
 import { EventBus } from "@/event-bus.js";
 import DarkModeControl from "@/components/DarkModeControl.vue";
@@ -96,6 +97,7 @@ export default {
     components: { DarkModeControl },
     data() {
         return {
+            API_BASE, // Make available to template
             project: null,
             save_slug: "",
             save_title: "",
@@ -132,7 +134,7 @@ export default {
     mounted() {
         // Load node info
         axios
-            .get(`/api/projects/${this.project_id}`)
+            .get(`${API_BASE}/api/projects/${this.project_id}`)
             .then(response => {
                 this.project = response.data;
                 console.log(response.data);

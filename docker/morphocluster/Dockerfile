@@ -28,6 +28,7 @@ RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 ENV PATH="/root/.local/bin:$PATH"
 
 COPY docker/morphocluster/run.sh docker/wait-for ./
+COPY docker/morphocluster/wsgi_morphocluster.py ./
 COPY docker/morphocluster/activate ./
 COPY docker/morphocluster/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 

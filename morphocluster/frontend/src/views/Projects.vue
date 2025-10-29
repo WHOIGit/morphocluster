@@ -2,7 +2,7 @@
     <div id="projects">
         <nav class="navbar navbar-expand-lg navbar navbar-dark bg-dark">
             <router-link class="navbar-brand" :to="{ name: 'projects' }">
-                <img src="/frontend/favicon.png" alt="MorphoCluster" class="navbar-logo" />
+                <img :src="`${API_BASE}/frontend/favicon.png`" alt="MorphoCluster" class="navbar-logo" />
                 MorphoCluster
             </router-link>
             <ul class="navbar-nav me-auto">
@@ -101,7 +101,7 @@
                 </b-table>
                 <p v-if="!projects">No projects available.</p>
                 <div style="margin: 0 auto; width: 0">
-                    <b-button size="sm" variant="danger" class="mr-2" href="/labeling">
+                    <b-button size="sm" variant="danger" class="mr-2" :href="`${API_BASE}/labeling`">
                         Expert mode
                     </b-button>
                 </div>
@@ -120,6 +120,7 @@
 
 <script>
 import * as api from "@/helpers/api.js";
+import { API_BASE } from "@/helpers/api.js";
 import DarkModeControl from "@/components/DarkModeControl.vue";
 import ClusterModal from "@/components/ClusterModal.vue";
 
@@ -135,6 +136,7 @@ export default {
     },
     data() {
         return {
+            API_BASE, // Make available to template
             fields: [
                 //{ key: "project_id", sortable: true },
                 { key: "name", sortable: true },

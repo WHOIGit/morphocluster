@@ -21,6 +21,7 @@
 
 <script>
 import "@mdi/font/css/materialdesignicons.css";
+import { API_BASE } from "@/helpers/api.js";
 
 export default {
     name: "member-preview",
@@ -46,10 +47,10 @@ export default {
         },
         image_urls: function () {
             if ("object_id" in this.member) {
-                return [`/get_obj_image/${this.member.object_id}`];
+                return [`${API_BASE}/get_obj_image/${this.member.object_id}`];
             } else if ("type_objects" in this.member) {
                 return this.member.type_objects.map(
-                    (objid) => `/get_obj_image/${objid}`
+                    (objid) => `${API_BASE}/get_obj_image/${objid}`
                 );
             }
             return [];

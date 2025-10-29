@@ -1,5 +1,5 @@
 module.exports = {
-    publicPath: "/frontend",
+    publicPath: "/morphocluster/frontend",
     devServer: {
         proxy: {
             '/labeling': {

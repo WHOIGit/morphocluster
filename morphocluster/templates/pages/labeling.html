@@ -6,9 +6,9 @@
 {% block title %}MorphoCluster{% endblock %}
 
 {% block head_last %}
-<link rel="stylesheet" href="/static/jstree/themes/default/style.min.css" />
-<link rel="stylesheet" href="/static/css/labeling.css" />
-  <link rel="stylesheet" href="/static/jquery-ui/jquery-ui.min.css">
+<link rel="stylesheet" href="{{ url_for('static', filename='jstree/themes/default/style.min.css') }}" />
+<link rel="stylesheet" href="{{ url_for('static', filename='css/labeling.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='jquery-ui/jquery-ui.min.css') }}">
 {% endblock %}
 
 {% block content %}
@@ -102,12 +102,16 @@
   <button type="submit" class="btn btn-primary pull-right">Submit</button>
 </form>
 </div>
-<script src="/static/jstree/jstree.min.js"></script>
-<script src="/static/js/jsrender.min.js"></script>
-<script src="/static/jquery-ui/jquery-ui.min.js"></script>
+<script>
+  // Set the base URL for API calls - injected by Flask
+  window.API_BASE = "{{ request.script_root }}";
+</script>
+<script src="{{ url_for('static', filename='jstree/jstree.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/jsrender.min.js') }}"></script>
+<script src="{{ url_for('static', filename='jquery-ui/jquery-ui.min.js') }}"></script>
 
-<script src="/static/js/scrollIntoViewIfNeededPolyfill.js"></script>
-<script src="/static/js/labeling.js" defer></script>
+<script src="{{ url_for('static', filename='js/scrollIntoViewIfNeededPolyfill.js') }}"></script>
+<script src="{{ url_for('static', filename='js/labeling.js') }}" defer></script>
 
 {% raw %}
 <script type="text/html" id="node-preview-template">
@@ -127,7 +131,7 @@
 		<div class="member-controls"></div>
 	</div>
 	<div class="images img-1">
-		<img src="/get_obj_image/{{:object_id}}" class="show-tt-fullsize" />
+		<img src="{% endraw %}{{ request.script_root }}{% raw %}/get_obj_image/{{:object_id}}" class="show-tt-fullsize" />
 	</div>
 </div>
 </script>
@@ -137,7 +141,7 @@
   		<div class="member-title" title="{{:title}}">{{:title}}</div>
 	</div>
 	<div class="images img-1">
-		<img src="/get_obj_image/{{:object_id}}" class="show-tt-fullsize" />
+		<img src="{% endraw %}{{ request.script_root }}{% raw %}/get_obj_image/{{:object_id}}" class="show-tt-fullsize" />
 	</div>
 </div>
 </script>

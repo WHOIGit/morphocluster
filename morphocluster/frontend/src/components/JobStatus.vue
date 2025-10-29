@@ -123,6 +123,7 @@
 </template>
 
 <script>
+import { API_BASE } from '@/helpers/api.js';
 
 export default {
   name: 'JobStatus',
@@ -193,10 +194,10 @@ export default {
     },
     async fetchJobs() {
       if (this.isLoading) return;
-      
+
       this.isLoading = true;
       try {
-        const response = await this.$axios.get('/api/jobs/user');
+        const response = await this.$axios.get(`${API_BASE}/api/jobs/user`);
         const allJobs = response.data;
 
         // Filter out manually removed jobs
@@ -238,7 +239,7 @@ export default {
       if (job) {
         job.cancelling = true;
         try {
-          await this.$axios.delete(`/api/jobs/${jobId}`);
+          await this.$axios.delete(`${API_BASE}/api/jobs/${jobId}`);
           this.$emit('job-cancelled', job);
         } catch (error) {
           console.error('Failed to cancel job:', error);

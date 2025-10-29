@@ -2,7 +2,7 @@
   <div id="job-queue">
     <nav class="navbar navbar-expand-lg navbar navbar-dark bg-dark">
       <router-link class="navbar-brand" :to="{ name: 'projects' }">
-        <img src="/frontend/favicon.png" alt="MorphoCluster" class="navbar-logo" />
+        <img :src="`${API_BASE}/frontend/favicon.png`" alt="MorphoCluster" class="navbar-logo" />
         MorphoCluster
       </router-link>
       <ul class="navbar-nav me-auto">
@@ -153,6 +153,7 @@
 </template>
 
 <script>
+import { API_BASE } from '@/helpers/api.js';
 import JobStatus from '@/components/JobStatus.vue';
 import DarkModeControl from '@/components/DarkModeControl.vue';
 
@@ -164,6 +165,7 @@ export default {
   },
   data() {
     return {
+      API_BASE, // Make available to template
       activeFilter: 'all',
       isRefreshing: false,
       completedJobIds: new Set(), // Track completed jobs for notifications

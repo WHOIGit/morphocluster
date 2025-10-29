@@ -2,7 +2,7 @@
     <div id="files">
         <nav class="navbar navbar-expand-lg navbar navbar-dark bg-dark">
             <router-link class="navbar-brand" :to="{ name: 'projects' }">
-                <img src="/frontend/favicon.png" alt="MorphoCluster" class="navbar-logo" />
+                <img :src="`${API_BASE}/frontend/favicon.png`" alt="MorphoCluster" class="navbar-logo" />
                 MorphoCluster
             </router-link>
             <div class="navbar-collapse" id="navbarNav">
@@ -79,6 +79,7 @@
 <script>
 import "@mdi/font/css/materialdesignicons.css";
 import * as api from "@/helpers/api.js";
+import { API_BASE } from "@/helpers/api.js";
 // Bootstrap is already imported globally in main.js
 import DarkModeControl from "@/components/DarkModeControl.vue";
 
@@ -89,6 +90,7 @@ export default {
     components: { DarkModeControl },
     data() {
         return {
+            API_BASE, // Make available to template
             fields: [
                 { key: "name" },
                 "last_modified",
@@ -120,7 +122,7 @@ export default {
             }
         },
         downloadFile() {
-            window.open(`/api/files/${this.entry.path}?download=1`);
+            window.open(`${API_BASE}/api/files/${this.entry.path}?download=1`);
         },
     },
 };
