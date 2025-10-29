@@ -211,7 +211,7 @@ import MemberPreview from "@/components/MemberPreview.vue";
 import MessageLog from "@/components/MessageLog.vue";
 import DarkModeControl from "@/components/DarkModeControl.vue";
 
-import Vue from "vue";
+import { nextTick } from "vue";
 
 const MAX_N_RECOMMENDATIONS = 100000;
 
@@ -314,7 +314,7 @@ export default {
         },
         not_ok_tooltip: function () {
             // Show tooltip when not_ok_tooltip changed
-            Vue.nextTick(() => {
+            nextTick(() => {
                 this.$root.$emit("bv::show::tooltip", "button-not-ok");
             });
         }
