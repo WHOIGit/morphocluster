@@ -164,7 +164,7 @@ export default {
         window.addEventListener("keypress", this.keypress);
         this.setupIntersectionObserver();
     },
-    beforeDestroy() {
+    beforeUnmount() {
         window.removeEventListener("keypress", this.keypress);
         if (this.observer) {
             this.observer.disconnect();

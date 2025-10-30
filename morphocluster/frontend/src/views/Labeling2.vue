@@ -124,7 +124,7 @@ export default {
         console.log(e);
       });
   },
-  beforeDestroy() {
+  beforeUnmount() {
     if (this.observer) {
       this.observer.disconnect();
     }
