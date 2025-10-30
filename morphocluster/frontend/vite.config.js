@@ -14,25 +14,25 @@ export default defineConfig({
   server: {
     port: 8080,
     proxy: {
-      '/labeling': {
+      '/morphocluster/frontend/labeling': {
         target: 'http://localhost:5000',
         changeOrigin: true,
         ws: true
       },
-      '/config.js': {
+      '/morphocluster/frontend/config.js': {
         target: 'http://localhost:5000',
         changeOrigin: true
       },
-      '/static': {
+      '/morphocluster/frontend/static': {
         target: 'http://localhost:5000',
         changeOrigin: true
       },
-      '/api': {
+      '/morphocluster/frontend/api': {
         target: 'http://localhost:5000',
         changeOrigin: true,
         ws: true
       },
-      '/get_obj_image': {
+      '/morphocluster/frontend/get_obj_image': {
         target: 'http://localhost:5000',
         changeOrigin: true
       }
