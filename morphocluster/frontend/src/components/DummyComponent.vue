@@ -20,8 +20,8 @@ export default {
     activated () {
         console.log("activated dummy-component");
     },
-    destroyed () {
-        console.log("destroyed dummy-component");
+    unmounted () {
+        console.log("unmounted dummy-component");
     },
 }
 </script>
